@@ -1,0 +1,8 @@
+name = "enveloppe"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "enveloppe"
+database_id = "REMPLIR_APRES_CREATION"
