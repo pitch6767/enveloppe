@@ -32,8 +32,9 @@ Une projection linéaire prévient quand le rythme mène dans le mur :
   le même libellé part directement au bon endroit au scan suivant, sans appel API.
 - **Achats en ligne : capture d'écran déposée**, même pipeline que le papier.
   Une confirmation n'est pas un débit — suppression manuelle si retour.
-- **Statuts** : `exempt` (offert) · `actif` · `impaye` · `archive`. Stripe branché plus tard,
-  les colonnes existent déjà.
+- **Paiement en cash, aucun Stripe.** Statuts : `exempt` (offert) · `actif` · `archive`.
+  Un compte payant porte une date `expire_le` ; `/admin` affiche les échéances et un bouton
+  « +1 an » à cliquer quand l'argent est encaissé. À l'échéance : lecture seule, rien n'est effacé.
 
 ## Classement d'une ligne
 
