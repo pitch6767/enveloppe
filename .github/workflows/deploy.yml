@@ -3,6 +3,9 @@ name: Deployer le Worker
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   deployer:
     runs-on: ubuntu-latest
@@ -13,13 +16,19 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Deployer avec le sous-domaine workers.dev
-        run: |
-          npx wrangler@latest deploy 2>&1 | tee sortie.txt
-          URL=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' sortie.txt | head -1)
-          echo "URL_DEPLOYEE=$URL"
-          gh api "repos/$GITHUB_REPOSITORY/issues" -f title="URL: $URL" -f body="deploiement" || true
+      - name: Deployer
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx wrangler@latest deploy 2>&1 | tee sortie.txt
+          grep -oE 'https://[a-z0-9.-]+\.workers\.dev' sortie.txt | head -1 > URL.txt
+          cat URL.txt
+
+      - name: Publier l'URL
+        run: |
+          git config user.name "deploy-bot"
+          git config user.email "deploy@local"
+          git add URL.txt
+          git commit -m "URL deployee" || exit 0
+          git push
