@@ -2,7 +2,7 @@ import { CATEGORIES_DEFAUT, SEUIL_CONFIANCE } from "./categories";
 import { genererCode, genererId, normaliserLibelle, calculerEnveloppe, projeter, chf } from "./lib";
 import { evaluerAcces, peutEcrire, prolongerUnAn, type Acces } from "./acces";
 import { analyserImage, type CategorieRow } from "./vision";
-import { pageEntree, pageAdmin, pageApp } from "./pages";
+import { pageEntree, pageAdmin, pageApp, pageReglages } from "./pages";
 
 export interface Env {
   DB: D1Database;
@@ -163,6 +163,12 @@ export default {
     if (!s) return html(pageEntree());
 
     if (p === "/") return html(pageApp(s, await etatDuMois(env, s)));
+    if (p === "/reglages") {
+      const f = await env.DB.prepare(
+        `SELECT id, libelle, montant FROM fixes WHERE compte_id = ?1 AND actif = 1 ORDER BY montant DESC`,
+      ).bind(s.compte_id).all<any>();
+      return html(pageReglages(s, f.results ?? []));
+    }
     if (p.startsWith("/api/")) return api(req, env, s, p);
 
     return new Response("Introuvable", { status: 404 });

@@ -142,17 +142,24 @@ ${bandeau}${alerteRythme}
   </div>
 </div>
 ${e.aVerifier > 0 ? `<div class="info">${e.aVerifier} ligne${e.aVerifier > 1 ? "s" : ""} à vérifier.</div>` : ""}
+<div style="display:flex;gap:8px;margin-bottom:12px">
+  <button onclick="photo.click()" style="flex:1">Prendre une photo</button>
+  <button onclick="fic.click()" style="flex:1;background:var(--accent)">Choisir un fichier</button>
+</div>
+<input type="file" id="photo" accept="image/*" capture="environment" hidden>
 <div class="zone" id="zone">
   Glisse un ticket ou une capture d'écran<br>
-  <span class="doux">ou colle avec Ctrl+V, ou touche pour photographier</span>
+  <span class="doux">ou colle avec Ctrl+V</span>
   <input type="file" id="fic" accept="image/*" hidden>
 </div>
 <h2>Catégories</h2>
 <div class="carte">${cats}</div>
+<div style="margin:16px 0 40px"><a href="/reglages" style="color:var(--accent)">Salaire, charges fixes et épargne</a></div>
 <script>
-const zone=document.getElementById('zone'),fic=document.getElementById('fic');
+const zone=document.getElementById('zone'),fic=document.getElementById('fic'),photo=document.getElementById('photo');
 zone.onclick=()=>fic.click();
 fic.onchange=()=>fic.files[0]&&envoyer(fic.files[0]);
+photo.onchange=()=>photo.files[0]&&envoyer(photo.files[0]);
 ['dragenter','dragover'].forEach(t=>zone.addEventListener(t,e=>{e.preventDefault();zone.classList.add('actif')}));
 ['dragleave','drop'].forEach(t=>zone.addEventListener(t,e=>{e.preventDefault();zone.classList.remove('actif')}));
 zone.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)envoyer(f)});
@@ -164,6 +171,63 @@ async function envoyer(f){
   const fd=new FormData();fd.append('image',f);
   const r=await fetch('/api/scan',{method:'POST',body:fd});
   if(!r.ok){zone.textContent='Échec de la lecture. Réessaie.';return}
+  location.reload();
+}
+</script>`);
+}
+
+export function pageReglages(s: { nom: string; salaire: number; epargne: number }, fixes: any[]): string {
+  const total = fixes.reduce((a, f) => a + f.montant, 0);
+  const lignes = fixes.map((f) => `<div class="rang">
+    <span>${f.libelle}</span>
+    <span><strong>${chf(f.montant)}</strong>
+    <button class="plat" style="margin-left:12px" onclick="suppr('${f.id}')">×</button></span>
+  </div>`).join("") || `<div class="doux">Aucune charge fixe.</div>`;
+
+  return enveloppeHtml("Réglages", `
+<h1>Réglages</h1>
+<p class="doux"><a href="/" style="color:var(--accent)">← Retour</a></p>
+
+<h2>Salaire et épargne</h2>
+<div class="carte">
+  <label class="doux">Salaire net mensuel</label>
+  <input id="salaire" type="number" inputmode="decimal" value="${s.salaire || ""}" placeholder="5000">
+  <label class="doux" style="display:block;margin-top:12px">Épargne à virer chaque mois</label>
+  <input id="epargne" type="number" inputmode="decimal" value="${s.epargne || ""}" placeholder="1000">
+  <div class="doux" id="pct" style="margin-top:8px"></div>
+  <button onclick="enregistrer()" style="width:100%;margin-top:12px">Enregistrer</button>
+</div>
+
+<h2>Charges fixes — ${chf(total)}</h2>
+<div class="carte">${lignes}</div>
+<div class="carte">
+  <input id="lib" placeholder="Loyer, assurance, abonnement…">
+  <input id="mnt" type="number" inputmode="decimal" placeholder="Montant" style="margin-top:8px">
+  <button onclick="ajouter()" style="width:100%;margin-top:12px">Ajouter</button>
+</div>
+<script>
+function maj(){
+  const s=+document.getElementById('salaire').value||0, e=+document.getElementById('epargne').value||0;
+  document.getElementById('pct').textContent = s>0 ? 'Épargne = '+(e/s*100).toFixed(0)+' % du salaire' : '';
+}
+document.getElementById('salaire').oninput=maj;
+document.getElementById('epargne').oninput=maj;maj();
+async function enregistrer(){
+  await fetch('/api/reglages',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({salaire:+document.getElementById('salaire').value||0,
+                         epargne:+document.getElementById('epargne').value||0})});
+  location.href='/';
+}
+async function ajouter(){
+  const libelle=document.getElementById('lib').value.trim();
+  const montant=+document.getElementById('mnt').value||0;
+  if(!libelle||!montant)return;
+  await fetch('/api/fixe',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({libelle,montant})});
+  location.reload();
+}
+async function suppr(id){
+  await fetch('/api/fixe/'+id,{method:'DELETE'});
   location.reload();
 }
 </script>`);
