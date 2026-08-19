@@ -1,15 +1,1 @@
-INSERT INTO comptes (id,nom,statut,expire_le) VALUES ('cpt_138085c739d0409dac83','Pitch','exempt',NULL);
-INSERT INTO codes (id,compte_id,code,label) VALUES ('cod_b1dd6125941b44f48517','cpt_138085c739d0409dac83','427789','principal');
-INSERT INTO categories (id,compte_id,nom,description,couleur,systeme,ordre) VALUES ('cat_0470763c41d348cf839b','cpt_138085c739d0409dac83','Nourriture','courses alimentaires, épicerie, boulangerie, marché','#3b7a3b',0,0);
-INSERT INTO categories (id,compte_id,nom,description,couleur,systeme,ordre) VALUES ('cat_d003863a2e0a4065bf88','cpt_138085c739d0409dac83','Restaurant','restaurant, take-away, livraison, café, cantine','#5a8f4a',0,1);
-INSERT INTO categories (id,compte_id,nom,description,couleur,systeme,ordre) VALUES ('cat_29a3b128899f4e6091a0','cpt_138085c739d0409dac83','Alcool','vin, bière, spiritueux, apéritifs — JAMAIS dans Nourriture','#7b3fa0',1,2);
-INSERT INTO categories (id,compte_id,nom,description,couleur,systeme,ordre) VALUES ('cat_be5b90bc9e4246ad9ff0','cpt_138085c739d0409dac83','Tabac','cigarettes, tabac, puff, accessoires — JAMAIS dans Nourriture','#9b4fc0',1,3);
-INSERT INTO categories (id,compte_id,nom,description,couleur,systeme,ordre) VALUES ('cat_25610fc2db754354a724','cpt_138085c739d0409dac83','Ménage / Hygiène','lessive, produits d''entretien, papier, savon, dentifrice','#4a7f8f',0,4);
-INSERT INTO categories (id,compte_id,nom,description,couleur,systeme,ordre) VALUES ('cat_2df7ef8fa64944289412','cpt_138085c739d0409dac83','Transport','essence, CFF, parking, vignette, entretien véhicule','#3f6fa0',0,5);
-INSERT INTO categories (id,compte_id,nom,description,couleur,systeme,ordre) VALUES ('cat_3a52714241844ecf8dda','cpt_138085c739d0409dac83','Santé','pharmacie, médecin, dentiste, opticien, franchise','#c05f5f',0,6);
-INSERT INTO categories (id,compte_id,nom,description,couleur,systeme,ordre) VALUES ('cat_a0d60f822ecd4fc38340','cpt_138085c739d0409dac83','Vêtements','habits, chaussures, retouches','#a0623f',0,7);
-INSERT INTO categories (id,compte_id,nom,description,couleur,systeme,ordre) VALUES ('cat_19218685af524eefb54a','cpt_138085c739d0409dac83','Loisirs','sport, cinéma, livres, sorties, matériel de loisir','#c0913f',0,8);
-INSERT INTO categories (id,compte_id,nom,description,couleur,systeme,ordre) VALUES ('cat_8d5edb9dca184f0ab956','cpt_138085c739d0409dac83','Abonnements','téléphone, internet, streaming, applications','#6f6f8f',0,9);
-INSERT INTO categories (id,compte_id,nom,description,couleur,systeme,ordre) VALUES ('cat_10a536b01487466f8c7e','cpt_138085c739d0409dac83','Beauté / Coiffeur','coiffeur, esthétique, parfumerie, soins','#b06f8f',0,10);
-INSERT INTO categories (id,compte_id,nom,description,couleur,systeme,ordre) VALUES ('cat_35d255f9496b418baf22','cpt_138085c739d0409dac83','Cadeaux','cadeaux, fleurs, dons','#8f5fa0',0,11);
-INSERT INTO categories (id,compte_id,nom,description,couleur,systeme,ordre) VALUES ('cat_fbe1c3c8f2294d0c9d4a','cpt_138085c739d0409dac83','Divers','tout ce qui n''entre nulle part ailleurs — catégorie de repli','#7f7f7f',0,12);
+UPDATE codes SET code = '330293' WHERE code = '427789';
