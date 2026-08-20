@@ -381,11 +381,10 @@ async function api(req: Request, env: Env, s: Session, p: string): Promise<Respo
       .bind(id, s.compte_id).first<any>();
     if (!cat) return json({ erreur: "inconnue" }, 404);
 
-    // Le nom et la description d'Alcool et Tabac restent verrouillés ; leur budget non.
-    const nom = cat.systeme === 1 ? cat.nom : String(c.nom ?? cat.nom);
+    // Seul le budget est modifiable : les noms de catégories ne se renomment pas.
     await env.DB.prepare(
-      `UPDATE categories SET nom = ?2, budget = ?3 WHERE id = ?1 AND compte_id = ?4`,
-    ).bind(id, nom, c.budget === null || c.budget === "" ? null : Number(c.budget) || null, s.compte_id).run();
+      `UPDATE categories SET budget = ?2 WHERE id = ?1 AND compte_id = ?3`,
+    ).bind(id, c.budget === null || c.budget === "" ? null : Number(c.budget) || null, s.compte_id).run();
     return json({ ok: true });
   }
 

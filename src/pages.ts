@@ -304,11 +304,10 @@ export function pageCategories(cats: any[]): string {
   const rangs = cats.map((c) => `
     <div class="rang" style="display:block">
       <div style="display:flex;gap:8px;align-items:center">
-        <input value="${c.nom}" ${c.systeme === 1 ? "disabled" : ""}
-               style="flex:1;padding:8px" onchange="maj('${c.id}',this.value,null)">
+        <span style="flex:1">${c.nom}</span>
         <input type="number" step="10" placeholder="budget" value="${c.budget ?? ""}"
                style="width:100px;padding:8px;text-align:right"
-               onchange="maj('${c.id}',null,this.value)">
+               onchange="maj('${c.id}',this.value)">
       </div>
       <div class="doux" style="margin-top:4px;display:flex;justify-content:space-between">
         <span>Dépensé ${chf(c.depense)}${c.systeme === 1 ? " · catégorie verrouillée" : ""}</span>
@@ -330,12 +329,9 @@ export function pageCategories(cats: any[]): string {
   <button onclick="ajouter()" style="width:100%;margin-top:12px">Ajouter</button>
 </div>
 <script>
-async function maj(id,nom,budget){
-  const corps={};
-  if(nom!==null)corps.nom=nom;
-  if(budget!==null)corps.budget=budget===''?null:parseFloat(budget);
+async function maj(id,budget){
   await fetch('/api/categorie/'+id,{method:'PATCH',headers:{'content-type':'application/json'},
-    body:JSON.stringify(corps)});
+    body:JSON.stringify({budget:budget===''?null:parseFloat(budget)})});
   location.reload();
 }
 async function ajouter(){

@@ -54,10 +54,19 @@ describe("contenu des pages", () => {
     expect(pages.app).toContain("Prendre une photo");
   });
 
-  it("les catégories système ne sont pas modifiables", () => {
+  it("les noms de catégories ne sont pas renommables", () => {
+    expect(pages.categories).not.toContain('value="Nourriture"');
+    expect(pages.categories).toContain("Nourriture");
+  });
+
+  it("les catégories système ne se suppriment pas", () => {
     const bloc = pages.categories.split("Alcool")[1] ?? "";
-    expect(pages.categories).toContain("disabled");
     expect(bloc).not.toContain("Supprimer</button>");
+    expect(bloc).toContain("verrouillée");
+  });
+
+  it("le budget reste modifiable sur toutes les catégories", () => {
+    expect((pages.categories.match(/placeholder="budget"/g) ?? []).length).toBe(cats.length);
   });
 
   it("l'alerte de rythme apparaît quand la projection dépasse", () => {
