@@ -154,7 +154,11 @@ ${e.aVerifier > 0 ? `<div class="info">${e.aVerifier} ligne${e.aVerifier > 1 ? "
 </div>
 <h2>Catégories</h2>
 <div class="carte">${cats}</div>
-<div style="margin:16px 0 40px"><a href="/reglages" style="color:var(--accent)">Salaire, charges fixes et épargne</a></div>
+<div style="margin:16px 0 40px;display:flex;flex-direction:column;gap:8px">
+  <a href="/depenses" style="color:var(--accent)">Corriger les dépenses</a>
+  <a href="/categories" style="color:var(--accent)">Catégories et budgets</a>
+  <a href="/reglages" style="color:var(--accent)">Salaire, charges fixes et épargne</a>
+</div>
 <script>
 const zone=document.getElementById('zone'),fic=document.getElementById('fic'),photo=document.getElementById('photo');
 zone.onclick=()=>fic.click();
@@ -228,6 +232,123 @@ async function ajouter(){
 }
 async function suppr(id){
   await fetch('/api/fixe/'+id,{method:'DELETE'});
+  location.reload();
+}
+</script>`);
+}
+
+export function pageDepenses(deps: any[], lignes: any[], cats: any[]): string {
+  const options = (sel: string) => cats.map((c) =>
+    `<option value="${c.id}"${c.id === sel ? " selected" : ""}>${c.nom}</option>`).join("");
+
+  const blocs = deps.map((d) => {
+    const mes = lignes.filter((l) => l.depense_id === d.id);
+    const rangs = mes.map((l) => `
+      <div class="rang" style="display:block" data-id="${l.id}">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+          <span style="flex:1">${l.libelle}${l.confiance < 0.6 ? ' <span class="attention">•</span>' : ""}</span>
+          <input type="number" step="0.05" value="${l.montant.toFixed(2)}"
+                 style="width:90px;padding:6px;text-align:right"
+                 onchange="majLigne('${l.id}',this.value,null)">
+        </div>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <select style="flex:1;padding:6px" onchange="majLigne('${l.id}',null,this.value)">
+            ${options(l.categorie_id)}
+          </select>
+          <button class="plat" onclick="scinder('${l.id}',${l.montant})">Scinder</button>
+        </div>
+      </div>`).join("");
+
+    return `<h2>${d.date} — ${d.marchand ?? "sans nom"} — ${chf(d.total)}</h2>
+      <div class="carte">${rangs || '<div class="doux">Aucune ligne.</div>'}
+        <button class="plat" style="color:var(--exces)" onclick="supprDep('${d.id}')">Supprimer ce ticket</button>
+      </div>`;
+  }).join("");
+
+  return enveloppeHtml("Dépenses", `
+<h1>Dépenses</h1>
+<p class="doux"><a href="/" style="color:var(--accent)">← Retour</a></p>
+${blocs || '<div class="carte doux">Aucune dépense enregistrée.</div>'}
+<datalist id="cats">${cats.map((c) => `<option value="${c.nom}">`).join("")}</datalist>
+<script>
+const CATS=${JSON.stringify(cats.map((c) => ({ id: c.id, nom: c.nom })))};
+async function majLigne(id,montant,categorie_id){
+  const corps={};
+  if(montant!==null)corps.montant=parseFloat(montant);
+  if(categorie_id!==null)corps.categorie_id=categorie_id;
+  const r=await fetch('/api/ligne/'+id,{method:'PATCH',headers:{'content-type':'application/json'},
+    body:JSON.stringify(corps)});
+  if(!r.ok){alert('Échec de la modification');return}
+  location.reload();
+}
+async function scinder(id,total){
+  const m=prompt('Quel montant déplacer vers une autre catégorie ? (max '+(total-0.05).toFixed(2)+')');
+  if(!m)return;
+  const noms=CATS.map((c,i)=>i+' = '+c.nom).join('\\n');
+  const i=prompt('Vers quelle catégorie ?\\n\\n'+noms);
+  if(i===null||!CATS[+i])return;
+  const r=await fetch('/api/ligne/'+id+'/scinder',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({montant:parseFloat(m),categorie_id:CATS[+i].id})});
+  if(!r.ok){const e=await r.json();alert(e.erreur||'Échec');return}
+  location.reload();
+}
+async function supprDep(id){
+  if(!confirm('Supprimer ce ticket et toutes ses lignes ?'))return;
+  await fetch('/api/depense/'+id,{method:'DELETE'});
+  location.reload();
+}
+</script>`);
+}
+
+export function pageCategories(cats: any[]): string {
+  const rangs = cats.map((c) => `
+    <div class="rang" style="display:block">
+      <div style="display:flex;gap:8px;align-items:center">
+        <input value="${c.nom}" ${c.systeme === 1 ? "disabled" : ""}
+               style="flex:1;padding:8px" onchange="maj('${c.id}',this.value,null)">
+        <input type="number" step="10" placeholder="budget" value="${c.budget ?? ""}"
+               style="width:100px;padding:8px;text-align:right"
+               onchange="maj('${c.id}',null,this.value)">
+      </div>
+      <div class="doux" style="margin-top:4px;display:flex;justify-content:space-between">
+        <span>Dépensé ${chf(c.depense)}${c.systeme === 1 ? " · catégorie verrouillée" : ""}</span>
+        ${c.systeme === 1 ? "" : `<button class="plat" style="color:var(--exces)" onclick="suppr('${c.id}')">Supprimer</button>`}
+      </div>
+    </div>`).join("");
+
+  return enveloppeHtml("Catégories", `
+<h1>Catégories</h1>
+<p class="doux"><a href="/" style="color:var(--accent)">← Retour</a></p>
+<div class="carte">${rangs}</div>
+
+<h2>Ajouter</h2>
+<div class="carte">
+  <input id="nom" placeholder="Nom, par exemple Vigne">
+  <input id="desc" placeholder="Description : sulfate, piquets, sécateurs…" style="margin-top:8px">
+  <input id="budget" type="number" placeholder="Budget mensuel (facultatif)" style="margin-top:8px">
+  <div class="doux" style="margin-top:8px">La description sert à classer les tickets automatiquement. Sois concret.</div>
+  <button onclick="ajouter()" style="width:100%;margin-top:12px">Ajouter</button>
+</div>
+<script>
+async function maj(id,nom,budget){
+  const corps={};
+  if(nom!==null)corps.nom=nom;
+  if(budget!==null)corps.budget=budget===''?null:parseFloat(budget);
+  await fetch('/api/categorie/'+id,{method:'PATCH',headers:{'content-type':'application/json'},
+    body:JSON.stringify(corps)});
+  location.reload();
+}
+async function ajouter(){
+  const nom=document.getElementById('nom').value.trim();
+  const description=document.getElementById('desc').value.trim();
+  if(!nom||!description){alert('Le nom et la description sont nécessaires.');return}
+  await fetch('/api/categorie',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({nom,description,budget:document.getElementById('budget').value||null})});
+  location.reload();
+}
+async function suppr(id){
+  if(!confirm('Supprimer ? Les dépenses basculent dans Divers.'))return;
+  await fetch('/api/categorie/'+id,{method:'DELETE'});
   location.reload();
 }
 </script>`);

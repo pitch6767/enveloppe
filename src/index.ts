@@ -2,7 +2,7 @@ import { CATEGORIES_DEFAUT, SEUIL_CONFIANCE } from "./categories";
 import { genererCode, genererId, normaliserLibelle, calculerEnveloppe, projeter, chf } from "./lib";
 import { evaluerAcces, peutEcrire, prolongerUnAn, type Acces } from "./acces";
 import { analyserImage, type CategorieRow } from "./vision";
-import { pageEntree, pageAdmin, pageApp, pageReglages } from "./pages";
+import { pageEntree, pageAdmin, pageApp, pageReglages, pageDepenses, pageCategories } from "./pages";
 
 export interface Env {
   DB: D1Database;
@@ -163,6 +163,34 @@ export default {
     if (!s) return html(pageEntree());
 
     if (p === "/") return html(pageApp(s, await etatDuMois(env, s)));
+    if (p === "/depenses") {
+      const d = await env.DB.prepare(
+        `SELECT id, date, marchand, total, source FROM depenses
+          WHERE compte_id = ?1 ORDER BY date DESC, cree_le DESC LIMIT 40`,
+      ).bind(s.compte_id).all<any>();
+      const l = await env.DB.prepare(
+        `SELECT id, depense_id, libelle, montant, categorie_id, confiance
+           FROM lignes WHERE compte_id = ?1`,
+      ).bind(s.compte_id).all<any>();
+      const c = await env.DB.prepare(
+        `SELECT id, nom, systeme FROM categories WHERE compte_id = ?1 ORDER BY ordre`,
+      ).bind(s.compte_id).all<any>();
+      return html(pageDepenses(d.results ?? [], l.results ?? [], c.results ?? []));
+    }
+
+    if (p === "/categories") {
+      const { debut, fin } = moisCourant();
+      const c = await env.DB.prepare(
+        `SELECT c.id, c.nom, c.description, c.budget, c.couleur, c.systeme,
+                COALESCE(SUM(CASE WHEN d.date >= ?2 AND d.date < ?3 THEN l.montant END), 0) AS depense
+           FROM categories c
+           LEFT JOIN lignes l ON l.categorie_id = c.id
+           LEFT JOIN depenses d ON d.id = l.depense_id
+          WHERE c.compte_id = ?1 GROUP BY c.id ORDER BY c.ordre`,
+      ).bind(s.compte_id, debut, fin).all<any>();
+      return html(pageCategories(c.results ?? []));
+    }
+
     if (p === "/reglages") {
       const f = await env.DB.prepare(
         `SELECT id, libelle, montant FROM fixes WHERE compte_id = ?1 AND actif = 1 ORDER BY montant DESC`,
@@ -290,23 +318,74 @@ async function api(req: Request, env: Env, s: Session, p: string): Promise<Respo
     return scanner(req, env, s);
   }
 
-  if (p.startsWith("/api/ligne/") && req.method === "PATCH") {
+  if (p.startsWith("/api/ligne/") && p.endsWith("/scinder") && req.method === "POST") {
+    if (!ecriture) return json({ erreur: "echeance" }, 402);
     const id = p.split("/")[3];
     const c = await req.json<any>();
-    const ligne = await env.DB.prepare(`SELECT libelle FROM lignes WHERE id = ?1 AND compte_id = ?2`)
-      .bind(id, s.compte_id).first<any>();
+    const part = Number(c.montant) || 0;
+
+    const ligne = await env.DB.prepare(
+      `SELECT libelle, montant, depense_id FROM lignes WHERE id = ?1 AND compte_id = ?2`,
+    ).bind(id, s.compte_id).first<any>();
+    if (!ligne) return json({ erreur: "inconnue" }, 404);
+    if (part <= 0 || part >= ligne.montant) {
+      return json({ erreur: "le montant scindé doit être strictement compris entre 0 et le total de la ligne" }, 400);
+    }
+
+    await env.DB.batch([
+      env.DB.prepare(`UPDATE lignes SET montant = ?2 WHERE id = ?1`).bind(id, ligne.montant - part),
+      env.DB.prepare(
+        `INSERT INTO lignes (id, depense_id, compte_id, libelle, montant, categorie_id, confiance)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1)`,
+      ).bind(genererId("lig"), ligne.depense_id, s.compte_id, ligne.libelle, part, c.categorie_id),
+    ]);
+    return json({ ok: true });
+  }
+
+  if (p.startsWith("/api/ligne/") && req.method === "PATCH") {
+    if (!ecriture) return json({ erreur: "echeance" }, 402);
+    const id = p.split("/")[3];
+    const c = await req.json<any>();
+    const ligne = await env.DB.prepare(
+      `SELECT libelle, montant, categorie_id FROM lignes WHERE id = ?1 AND compte_id = ?2`,
+    ).bind(id, s.compte_id).first<any>();
     if (!ligne) return json({ erreur: "inconnue" }, 404);
 
-    // La correction devient une règle : plus d'appel Vision pour ce libellé.
-    await env.DB.batch([
-      env.DB.prepare(`UPDATE lignes SET categorie_id = ?2, confiance = 1 WHERE id = ?1`).bind(id, c.categorie_id),
-      env.DB.prepare(
+    const cat = c.categorie_id ?? ligne.categorie_id;
+    const montant = c.montant === undefined ? ligne.montant : Number(c.montant) || 0;
+
+    const stmts = [
+      env.DB.prepare(`UPDATE lignes SET categorie_id = ?2, montant = ?3, confiance = 1 WHERE id = ?1`)
+        .bind(id, cat, montant),
+    ];
+
+    // Une catégorie corrigée à la main devient une règle : plus d'appel Vision pour ce libellé.
+    if (c.categorie_id && c.categorie_id !== ligne.categorie_id) {
+      stmts.push(env.DB.prepare(
         `INSERT INTO regles (id, compte_id, libelle_norm, categorie_id)
          VALUES (?1, ?2, ?3, ?4)
          ON CONFLICT(compte_id, libelle_norm)
          DO UPDATE SET categorie_id = excluded.categorie_id, hits = hits + 1, maj_le = datetime('now')`,
-      ).bind(genererId("reg"), s.compte_id, normaliserLibelle(ligne.libelle), c.categorie_id),
-    ]);
+      ).bind(genererId("reg"), s.compte_id, normaliserLibelle(ligne.libelle), c.categorie_id));
+    }
+
+    await env.DB.batch(stmts);
+    return json({ ok: true });
+  }
+
+  if (p.startsWith("/api/categorie/") && req.method === "PATCH") {
+    if (!ecriture) return json({ erreur: "echeance" }, 402);
+    const id = p.split("/")[3];
+    const c = await req.json<any>();
+    const cat = await env.DB.prepare(`SELECT systeme, nom FROM categories WHERE id = ?1 AND compte_id = ?2`)
+      .bind(id, s.compte_id).first<any>();
+    if (!cat) return json({ erreur: "inconnue" }, 404);
+
+    // Le nom et la description d'Alcool et Tabac restent verrouillés ; leur budget non.
+    const nom = cat.systeme === 1 ? cat.nom : String(c.nom ?? cat.nom);
+    await env.DB.prepare(
+      `UPDATE categories SET nom = ?2, budget = ?3 WHERE id = ?1 AND compte_id = ?4`,
+    ).bind(id, nom, c.budget === null || c.budget === "" ? null : Number(c.budget) || null, s.compte_id).run();
     return json({ ok: true });
   }
 
