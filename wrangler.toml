@@ -3,7 +3,15 @@ main = "src/index.ts"
 compatibility_date = "2026-08-01"
 workers_dev = true
 
+# Les secrets définis dans le tableau de bord ne sont pas déclarés ici — c'est
+# leur raison d'être. Sans cette ligne, chaque déploiement réécrit la liste des
+# variables du Worker à partir de ce seul fichier, et efface donc la clé.
+keep_vars = true
+
 [[d1_databases]]
 binding = "DB"
 database_name = "enveloppe"
 database_id = "1f4ab3bd-694f-447d-9c91-47c99824e5ed"
+
+[vars]
+ANTHROPIC_MODEL = "claude-sonnet-5"

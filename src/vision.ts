@@ -54,11 +54,14 @@ Réponds UNIQUEMENT avec cet objet JSON, sans texte autour, sans balises Markdow
 {"marchand":"...","date":"AAAA-MM-JJ","total":0.00,"lignes":[{"libelle":"...","montant":0.00,"categorie":"...","confiance":0.0}]}`;
 }
 
+export const MODELE_DEFAUT = "claude-sonnet-5";
+
 export async function analyserImage(
   apiKey: string,
   base64: string,
   mediaType: string,
   categories: CategorieRow[],
+  modele = MODELE_DEFAUT,
 ): Promise<TicketExtrait> {
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -68,7 +71,7 @@ export async function analyserImage(
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-6",
+      model: modele,
       max_tokens: 2000,
       messages: [{
         role: "user",
@@ -151,6 +154,7 @@ export async function elucider(
   apiKey: string,
   libelles: string[],
   categories: CategorieRow[],
+  modele = MODELE_DEFAUT,
 ): Promise<Elucidation[]> {
   if (!libelles.length) return [];
 
@@ -162,7 +166,7 @@ export async function elucider(
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-6",
+      model: modele,
       max_tokens: 2000,
       messages: [{ role: "user", content: construirePromptRecherche(libelles, categories) }],
       tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 4 }],

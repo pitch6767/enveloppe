@@ -8,6 +8,7 @@ export interface Env {
   DB: D1Database;
   ANTHROPIC_API_KEY: string;
   ADMIN_CODE: string;
+  ANTHROPIC_MODEL?: string;
 }
 
 const COOKIE = "env_code";
@@ -440,7 +441,7 @@ async function scanner(req: Request, env: Env, s: Session): Promise<Response> {
   ).bind(s.compte_id).all<CategorieRow>();
   const categories = cats.results ?? [];
 
-  const extrait = await analyserImage(env.ANTHROPIC_API_KEY, base64, fichier.type || "image/jpeg", categories);
+  const extrait = await analyserImage(env.ANTHROPIC_API_KEY, base64, fichier.type || "image/jpeg", categories, env.ANTHROPIC_MODEL);
 
   const regles = await env.DB.prepare(
     `SELECT libelle_norm, categorie_id FROM regles WHERE compte_id = ?1`,
@@ -455,7 +456,7 @@ async function scanner(req: Request, env: Env, s: Session): Promise<Response> {
   );
   if (incertaines.length) {
     try {
-      const trouve = await elucider(env.ANTHROPIC_API_KEY, incertaines.map((l) => l.libelle), categories);
+      const trouve = await elucider(env.ANTHROPIC_API_KEY, incertaines.map((l) => l.libelle), categories, env.ANTHROPIC_MODEL);
       for (const t of trouve) {
         const cible = incertaines.find(
           (l) => normaliserLibelle(l.libelle) === normaliserLibelle(t.libelle),
