@@ -48,10 +48,12 @@ Règles :
   deux catégories ou que l'article ne correspond clairement à aucune. Ne devine pas :
   une ligne peu sûre sera soumise à la personne, c'est le comportement voulu.
 - Montants en nombres décimaux, sans symbole monétaire.
-- Dates au format AAAA-MM-JJ.
+- DATE : recopie la date imprimée sur le ticket, au format année-mois-jour,
+  par exemple 2026-03-14. Si aucune date n'est lisible, mets null.
+  N'invente jamais de date et ne recopie jamais le gabarit ci-dessous.
 
 Réponds UNIQUEMENT avec cet objet JSON, sans texte autour, sans balises Markdown :
-{"marchand":"...","date":"AAAA-MM-JJ","total":0.00,"lignes":[{"libelle":"...","montant":0.00,"categorie":"...","confiance":0.0}]}`;
+{"marchand":"nom du magasin","date":null,"total":0.00,"lignes":[{"libelle":"nom de l'article","montant":0.00,"categorie":"une des catégories ci-dessus","confiance":0.0}]}`;
 }
 
 export const MODELE_DEFAUT = "claude-sonnet-5";
@@ -95,6 +97,22 @@ export async function analyserImage(
 }
 
 /** Le modèle glisse parfois des backticks malgré la consigne. */
+/**
+ * N'accepte qu'une date réelle. Le modèle recopie parfois le gabarit du prompt,
+ * et une date factice fait disparaître la dépense de tous les totaux mensuels.
+ */
+export function dateValide(brut: unknown): string | null {
+  if (typeof brut !== "string") return null;
+  const t = brut.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return null;
+  const d = new Date(`${t}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  if (d.toISOString().slice(0, 10) !== t) return null;      // 2026-02-31
+  const annee = d.getUTCFullYear();
+  if (annee < 2000 || annee > 2100) return null;
+  return t;
+}
+
 export function parserReponse(texte: string): TicketExtrait {
   const net = texte.replace(/```json/gi, "").replace(/```/g, "").trim();
   const debut = net.indexOf("{");
@@ -105,7 +123,7 @@ export function parserReponse(texte: string): TicketExtrait {
 
   return {
     marchand: brut.marchand ?? null,
-    date: brut.date ?? null,
+    date: dateValide(brut.date),
     total: Number(brut.total) || 0,
     lignes: (brut.lignes ?? []).map((l: any) => ({
       libelle: String(l.libelle ?? "").trim(),

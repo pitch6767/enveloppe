@@ -144,3 +144,31 @@ describe("construirePromptRecherche", () => {
     expect(p).toContain("Ménage / Hygiène — rasoir, tondeuse");
   });
 });
+
+describe("dateValide", () => {
+  it("accepte une vraie date", async () => {
+    const { dateValide } = await import("../src/vision");
+    expect(dateValide("2026-03-14")).toBe("2026-03-14");
+  });
+  it("rejette le gabarit recopie", async () => {
+    const { dateValide } = await import("../src/vision");
+    expect(dateValide("AAAA-MM-JJ")).toBeNull();
+    expect(dateValide("YYYY-MM-DD")).toBeNull();
+  });
+  it("rejette une date impossible", async () => {
+    const { dateValide } = await import("../src/vision");
+    expect(dateValide("2026-02-31")).toBeNull();
+    expect(dateValide("2026-13-01")).toBeNull();
+  });
+  it("rejette les autres formats et le vide", async () => {
+    const { dateValide } = await import("../src/vision");
+    expect(dateValide("14.03.2026")).toBeNull();
+    expect(dateValide("")).toBeNull();
+    expect(dateValide(null)).toBeNull();
+    expect(dateValide(20260314)).toBeNull();
+  });
+  it("un ticket sans date lisible tombe a null", async () => {
+    const { parserReponse } = await import("../src/vision");
+    expect(parserReponse('{"marchand":"Fnac","date":"AAAA-MM-JJ","total":10,"lignes":[]}').date).toBeNull();
+  });
+});

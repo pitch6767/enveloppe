@@ -1,1 +1,1 @@
-UPDATE categories SET description = 'lessive, produits d''entretien, papier, savon, dentifrice, rasoir, tondeuse à barbe, aspirateur et petit électroménager du foyer' WHERE nom = 'Ménage / Hygiène';
+UPDATE depenses SET date = date('now') WHERE date NOT GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]';
