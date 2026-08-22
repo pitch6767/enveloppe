@@ -337,8 +337,36 @@ async function apiAdmin(req: Request, env: Env, p: string): Promise<Response> {
     return json({ ok: true });
   }
 
-  if (p === "/api/admin/archiver") {
-    await env.DB.prepare(`UPDATE comptes SET statut = 'archive' WHERE id = ?1`).bind(corps.id).run();
+  if (p === "/api/admin/suspendre") {
+    // Ne jamais suspendre un espace offert : il n'y a rien à régulariser.
+    const c = await env.DB.prepare(`SELECT statut FROM comptes WHERE id = ?1`)
+      .bind(corps.id).first<any>();
+    if (!c) return json({ erreur: "espace inconnu" }, 404);
+    if (c.statut === "exempt") return json({ erreur: "un espace offert ne se suspend pas" }, 400);
+
+    await env.DB.prepare(`UPDATE comptes SET statut = ?2 WHERE id = ?1`)
+      .bind(corps.id, corps.suspendu ? "suspendu" : "actif").run();
+    return json({ ok: true });
+  }
+
+  if (p === "/api/admin/supprimer") {
+    const c = await env.DB.prepare(`SELECT nom FROM comptes WHERE id = ?1`)
+      .bind(corps.id).first<any>();
+    if (!c) return json({ erreur: "espace inconnu" }, 404);
+    // Le nom doit être retapé : la suppression emporte toutes les données.
+    if (String(corps.confirmation ?? "").trim() !== c.nom) {
+      return json({ erreur: "le nom saisi ne correspond pas" }, 400);
+    }
+
+    await env.DB.batch([
+      env.DB.prepare(`DELETE FROM lignes WHERE compte_id = ?1`).bind(corps.id),
+      env.DB.prepare(`DELETE FROM depenses WHERE compte_id = ?1`).bind(corps.id),
+      env.DB.prepare(`DELETE FROM regles WHERE compte_id = ?1`).bind(corps.id),
+      env.DB.prepare(`DELETE FROM fixes WHERE compte_id = ?1`).bind(corps.id),
+      env.DB.prepare(`DELETE FROM categories WHERE compte_id = ?1`).bind(corps.id),
+      env.DB.prepare(`DELETE FROM codes WHERE compte_id = ?1`).bind(corps.id),
+      env.DB.prepare(`DELETE FROM comptes WHERE id = ?1`).bind(corps.id),
+    ]);
     return json({ ok: true });
   }
 

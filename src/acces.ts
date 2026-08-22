@@ -1,6 +1,6 @@
 // Droits d'accès d'un espace, déduits du statut et de l'échéance.
 
-export type Statut = "exempt" | "actif" | "archive";
+export type Statut = "exempt" | "actif" | "suspendu" | "archive";
 
 export interface CompteAcces {
   statut: Statut;
@@ -11,6 +11,7 @@ export type Acces =
   | { niveau: "ouvert"; joursRestants: number | null }
   | { niveau: "bientot"; joursRestants: number }
   | { niveau: "lecture"; joursDepasses: number }
+  | { niveau: "suspendu" }
   | { niveau: "ferme" };
 
 const JOUR = 86_400_000;
@@ -29,6 +30,8 @@ export function joursEntre(de: Date, a: Date): number {
  */
 export function evaluerAcces(c: CompteAcces, maintenant: Date): Acces {
   if (c.statut === "archive") return { niveau: "ferme" };
+  // Suspendu prime sur l'échéance : le compte peut être à jour et suspendu quand même.
+  if (c.statut === "suspendu") return { niveau: "suspendu" };
   if (c.statut === "exempt" || !c.expire_le) {
     return { niveau: "ouvert", joursRestants: null };
   }

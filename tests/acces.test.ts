@@ -89,3 +89,19 @@ describe("cookies d'administration", () => {
     expect(lire("", "env_admin")).toEqual([]);
   });
 });
+
+describe("suspension", () => {
+  it("coupe l'ecriture meme si l'echeance est lointaine", () => {
+    const a = evaluerAcces({ statut: "suspendu", expire_le: "2030-01-01" }, N("2026-08-20"));
+    expect(a.niveau).toBe("suspendu");
+    expect(peutEcrire(a)).toBe(false);
+  });
+  it("prime sur une echeance depassee", () => {
+    const a = evaluerAcces({ statut: "suspendu", expire_le: "2020-01-01" }, N("2026-08-20"));
+    expect(a.niveau).toBe("suspendu");
+  });
+  it("la reactivation rend l'ecriture", () => {
+    const a = evaluerAcces({ statut: "actif", expire_le: "2027-08-18" }, N("2026-08-20"));
+    expect(peutEcrire(a)).toBe(true);
+  });
+});

@@ -56,6 +56,7 @@ export function pageAdmin(comptes: any[], base: string, nouveau: string | null =
     if (c.statut === "exempt") return `<span style="background:var(--accent);color:#fff;padding:2px 8px;border-radius:10px;font-size:.7rem">offert</span>`;
     if (c.acces?.niveau === "lecture") return `<span style="background:var(--exces);color:#fff;padding:2px 8px;border-radius:10px;font-size:.7rem">échu</span>`;
     if (c.acces?.niveau === "bientot") return `<span style="background:var(--attention);color:#fff;padding:2px 8px;border-radius:10px;font-size:.7rem">${c.acces.joursRestants} j</span>`;
+    if (c.statut === "suspendu") return `<span style="background:var(--exces);color:#fff;padding:2px 8px;border-radius:10px;font-size:.7rem">suspendu</span>`;
     if (c.statut === "archive") return `<span style="background:var(--doux);color:#fff;padding:2px 8px;border-radius:10px;font-size:.7rem">archivé</span>`;
     return `<span style="background:var(--ok);color:#fff;padding:2px 8px;border-radius:10px;font-size:.7rem">actif</span>`;
   };
@@ -75,7 +76,9 @@ export function pageAdmin(comptes: any[], base: string, nouveau: string | null =
           <option value="6">6 mois</option><option value="12" selected>12 mois</option><option value="24">24 mois</option>
         </select>
         <button class="plat" onclick="prolonger('${c.id}')">Prolonger</button><br>
-        <button class="plat" onclick="offrir('${c.id}')">Rendre gratuit</button>`}
+        <button class="plat" onclick="offrir('${c.id}')">Rendre gratuit</button><br>
+        <button class="plat" onclick="suspendre('${c.id}',${c.statut === "suspendu" ? "false" : "true"})">${c.statut === "suspendu" ? "Réactiver" : "Suspendre"}</button><br>`}
+        <button class="plat" style="color:var(--exces)" onclick="supprimer('${c.id}','${c.nom}')">Supprimer</button>
       </td></tr>`).join("");
 
   const payants = comptes.filter((c) => c.statut === "actif").length;
@@ -123,6 +126,25 @@ async function changerCode(id,actuel){
   alert('Nouveau code : '+d.code+' — le lien précédent ne fonctionne plus, renvoie le nouveau à la personne.');
   location.reload();
 }
+async function suspendre(id,valeur){
+  const t=valeur?'Suspendre cet accès ? La personne ne pourra plus rien ajouter, ses données sont conservées.'
+                :'Réactiver cet accès ?';
+  if(!confirm(t))return;
+  const r=await fetch('/api/admin/suspendre',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({id,suspendu:valeur})});
+  const d=await r.json();
+  if(!r.ok){alert(d.erreur||'Échec');return}
+  location.reload();
+}
+async function supprimer(id,nom){
+  const saisi=prompt('Supprimer définitivement cet espace et toutes ses données ? Retape le nom pour confirmer :');
+  if(!saisi)return;
+  const r=await fetch('/api/admin/supprimer',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({id,confirmation:saisi})});
+  const d=await r.json();
+  if(!r.ok){alert(d.erreur||'Échec');return}
+  location.href='/admin';
+}
 async function offrir(id){
   if(!confirm('Rendre cet espace gratuit et sans échéance ?'))return;
   await fetch('/api/admin/gratuit',{method:'POST',headers:{'content-type':'application/json'},
@@ -162,7 +184,9 @@ export function pageApp(s: { nom: string; salaire: number; epargne: number; acce
   const env_ = e.enveloppe;
   const pr = e.projection;
 
-  const bandeau = s.acces.niveau === "lecture"
+  const bandeau = s.acces.niveau === "suspendu"
+    ? `<div class="alerte"><strong>Accès suspendu.</strong> Tes données sont conservées. Contacte la personne qui t'a fourni l'accès.</div>`
+    : s.acces.niveau === "lecture"
     ? `<div class="alerte">Ton accès est arrivé à échéance il y a ${s.acces.joursDepasses} jours. Consultation seule.</div>`
     : s.acces.niveau === "bientot"
       ? `<div class="info">Accès à renouveler dans ${s.acces.joursRestants} jours.</div>`

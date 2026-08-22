@@ -149,6 +149,22 @@ describe("contenu des pages", () => {
     expect(pages.admin).toContain("prompt(");
   });
 
+  it("un espace payant se suspend et se supprime", () => {
+    expect(pages.admin).toContain("Suspendre");
+    expect(pages.admin).toContain("supprimer('cpt_1','Sandrine')");
+  });
+
+  it("un espace offert se supprime mais ne se suspend pas", () => {
+    const bloc = pages.admin.split("Ma fille")[1] ?? "";
+    expect(bloc).not.toContain("Suspendre");
+    expect(bloc).toContain("supprimer('cpt_2'");
+  });
+
+  it("un accès suspendu est annoncé à la personne", () => {
+    const susp = { ...s, acces: { niveau: "suspendu" } as const };
+    expect(pageApp(susp, etat)).toContain("Accès suspendu");
+  });
+
   it("le code de chaque espace est modifiable", () => {
     expect(pages.admin).toContain("Changer le code");
     expect(pages.admin).toContain("changerCode('cpt_1','483927')");
