@@ -25,8 +25,12 @@ const s = { nom: "Pitch", salaire: 5000, epargne: 1000, acces: { niveau: "ouvert
 
 const pages: Record<string, string> = {
   entree: pageEntree("Code inconnu."),
-  admin: pageAdmin([{ id: "cpt_1", nom: "Sandrine", statut: "actif", expire_le: "2027-08-18", code: "483927" }],
-                   "https://enveloppe.pitch67.workers.dev"),
+  admin: pageAdmin([
+    { id: "cpt_1", nom: "Sandrine", statut: "actif", expire_le: "2027-08-18", code: "483927",
+      tickets: 12, acces: { niveau: "ouvert", joursRestants: 300 } },
+    { id: "cpt_2", nom: "Ma fille", statut: "exempt", expire_le: null, code: "112233",
+      tickets: 3, acces: { niveau: "ouvert", joursRestants: null } },
+  ], "https://enveloppe.pitch67.workers.dev"),
   app: pageApp(s, etat),
   reglages: pageReglages(s, etat.fixes),
   depenses: pageDepenses(deps, lignes, cats),
@@ -119,6 +123,27 @@ describe("contenu des pages", () => {
                    projection: projeter(476.5, 901, new Date(2026, 7, 10)) };
     expect(pageApp(s, avec)).toContain("achats exceptionnels");
     expect(pageApp(s, etat)).not.toContain("achats exceptionnels");
+  });
+
+  it("l'admin propose plusieurs durées de prolongation", () => {
+    expect(pages.admin).toContain("6 mois");
+    expect(pages.admin).toContain("24 mois");
+  });
+
+  it("un espace offert n'a ni échéance ni prolongation", () => {
+    const bloc = pages.admin.split("Ma fille")[1] ?? "";
+    expect(bloc).not.toContain("Prolonger");
+    expect(pages.admin).toContain("offert");
+  });
+
+  it("l'admin chiffre le revenu annuel", () => {
+    expect(pages.admin).toContain("65 CHF par an");
+  });
+
+  it("les réglages offrent les trois remises à zéro", () => {
+    expect(pages.reglages).toContain("Effacer toutes les dépenses");
+    expect(pages.reglages).toContain("Oublier l'apprentissage");
+    expect(pages.reglages).toContain("Tout remettre à zéro");
   });
 
   it("un ticket s'annule depuis les deux écrans", () => {

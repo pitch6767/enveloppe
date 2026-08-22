@@ -48,10 +48,18 @@ export function peutEcrire(a: Acces): boolean {
   return a.niveau === "ouvert" || a.niveau === "bientot";
 }
 
-/** Ajoute un an à l'échéance. Repart d'aujourd'hui si l'échéance est déjà passée. */
-export function prolongerUnAn(expire_le: string | null, maintenant: Date): string {
+/**
+ * Prolonge de N mois. Repart d'aujourd'hui si l'échéance est déjà passée,
+ * pour ne jamais offrir une période déjà écoulée.
+ */
+export function prolonger(expire_le: string | null, mois: number, maintenant: Date): string {
   const base = expire_le ? new Date(`${expire_le}T00:00:00Z`) : null;
   const depart = base && !Number.isNaN(base.getTime()) && base > maintenant ? base : maintenant;
-  const d = new Date(Date.UTC(depart.getUTCFullYear() + 1, depart.getUTCMonth(), depart.getUTCDate()));
+  const d = new Date(Date.UTC(depart.getUTCFullYear(), depart.getUTCMonth() + mois, depart.getUTCDate()));
   return d.toISOString().slice(0, 10);
+}
+
+/** Un an, cas courant. */
+export function prolongerUnAn(expire_le: string | null, maintenant: Date): string {
+  return prolonger(expire_le, 12, maintenant);
 }

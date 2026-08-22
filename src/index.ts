@@ -1,6 +1,6 @@
 import { CATEGORIES_DEFAUT, SEUIL_CONFIANCE } from "./categories";
 import { genererCode, genererId, normaliserLibelle, calculerEnveloppe, projeter, chf } from "./lib";
-import { evaluerAcces, peutEcrire, prolongerUnAn, type Acces } from "./acces";
+import { evaluerAcces, peutEcrire, prolonger, prolongerUnAn, type Acces } from "./acces";
 import { analyserImage, elucider, type CategorieRow } from "./vision";
 import { pageEntree, pageAdmin, pageApp, pageReglages, pageDepenses, pageCategories, pageClasser } from "./pages";
 
@@ -246,13 +246,19 @@ async function admin(req: Request, env: Env): Promise<Response> {
   }
 
   const comptes = await env.DB.prepare(
-    `SELECT c.id, c.nom, c.statut, c.expire_le, c.note,
-            (SELECT code FROM codes WHERE compte_id = c.id ORDER BY cree_le LIMIT 1) AS code
+    `SELECT c.id, c.nom, c.statut, c.expire_le, c.note, c.cree_le,
+            (SELECT code FROM codes WHERE compte_id = c.id ORDER BY cree_le LIMIT 1) AS code,
+            (SELECT COUNT(*) FROM depenses WHERE compte_id = c.id) AS tickets
        FROM comptes c ORDER BY c.cree_le DESC`,
   ).all<any>();
 
+  const avecAcces = (comptes.results ?? []).map((c) => ({
+    ...c,
+    acces: evaluerAcces({ statut: c.statut, expire_le: c.expire_le }, new Date()),
+  }));
+
   const base = new URL(req.url).origin;
-  return html(pageAdmin(comptes.results ?? [], base));
+  return html(pageAdmin(avecAcces, base));
 }
 
 async function apiAdmin(req: Request, env: Env, p: string): Promise<Response> {
@@ -272,10 +278,22 @@ async function apiAdmin(req: Request, env: Env, p: string): Promise<Response> {
     const c = await env.DB.prepare(`SELECT expire_le FROM comptes WHERE id = ?1`)
       .bind(corps.id).first<any>();
     if (!c) return json({ erreur: "inconnu" }, 404);
-    const nouvelle = prolongerUnAn(c.expire_le, new Date());
+    const mois = [6, 12, 24].includes(Number(corps.mois)) ? Number(corps.mois) : 12;
+    const nouvelle = prolonger(c.expire_le, mois, new Date());
     await env.DB.prepare(`UPDATE comptes SET expire_le = ?2, statut = 'actif' WHERE id = ?1`)
       .bind(corps.id, nouvelle).run();
     return json({ expire_le: nouvelle });
+  }
+
+  if (p === "/api/admin/gratuit") {
+    await env.DB.prepare(`UPDATE comptes SET statut = 'exempt', expire_le = NULL WHERE id = ?1`)
+      .bind(corps.id).run();
+    return json({ ok: true });
+  }
+
+  if (p === "/api/admin/archiver") {
+    await env.DB.prepare(`UPDATE comptes SET statut = 'archive' WHERE id = ?1`).bind(corps.id).run();
+    return json({ ok: true });
   }
 
   return json({ erreur: "route" }, 404);
@@ -283,6 +301,47 @@ async function apiAdmin(req: Request, env: Env, p: string): Promise<Response> {
 
 async function api(req: Request, env: Env, s: Session, p: string): Promise<Response> {
   const ecriture = peutEcrire(s.acces);
+
+  if (p === "/api/vider" && req.method === "POST") {
+    if (!ecriture) return json({ erreur: "ton accès est arrivé à échéance" }, 402);
+    const c = await req.json<any>();
+
+    // Trois niveaux, du plus doux au plus radical. Les catégories système
+    // sont toujours recréées : l'app ne doit jamais se retrouver sans elles.
+    if (c.portee === "depenses") {
+      await env.DB.batch([
+        env.DB.prepare(`DELETE FROM lignes WHERE compte_id = ?1`).bind(s.compte_id),
+        env.DB.prepare(`DELETE FROM depenses WHERE compte_id = ?1`).bind(s.compte_id),
+      ]);
+      return json({ ok: true });
+    }
+
+    if (c.portee === "apprentissage") {
+      await env.DB.prepare(`DELETE FROM regles WHERE compte_id = ?1`).bind(s.compte_id).run();
+      return json({ ok: true });
+    }
+
+    if (c.portee === "tout") {
+      const stmts: D1PreparedStatement[] = [
+        env.DB.prepare(`DELETE FROM lignes WHERE compte_id = ?1`).bind(s.compte_id),
+        env.DB.prepare(`DELETE FROM depenses WHERE compte_id = ?1`).bind(s.compte_id),
+        env.DB.prepare(`DELETE FROM regles WHERE compte_id = ?1`).bind(s.compte_id),
+        env.DB.prepare(`DELETE FROM fixes WHERE compte_id = ?1`).bind(s.compte_id),
+        env.DB.prepare(`DELETE FROM categories WHERE compte_id = ?1`).bind(s.compte_id),
+        env.DB.prepare(`UPDATE comptes SET salaire = 0, epargne = 0 WHERE id = ?1`).bind(s.compte_id),
+      ];
+      CATEGORIES_DEFAUT.forEach((cat, i) => {
+        stmts.push(env.DB.prepare(
+          `INSERT INTO categories (id, compte_id, nom, description, couleur, systeme, ordre)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
+        ).bind(genererId("cat"), s.compte_id, cat.nom, cat.description, cat.couleur, cat.systeme, i));
+      });
+      await env.DB.batch(stmts);
+      return json({ ok: true });
+    }
+
+    return json({ erreur: "portée inconnue" }, 400);
+  }
 
   if (p === "/api/reglages" && req.method === "POST") {
     if (!ecriture) return json({ erreur: "echeance" }, 402);

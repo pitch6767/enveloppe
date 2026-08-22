@@ -52,52 +52,91 @@ ${erreur ? `<div class="alerte" style="margin-top:12px">${erreur}</div>` : ""}
 }
 
 export function pageAdmin(comptes: any[], base: string): string {
-  const lignes = comptes.map((c) => {
-    const lien = `${base}/${c.code}`;
-    const ech = c.statut === "exempt"
-      ? `<span class="doux">gratuit</span>`
-      : c.expire_le ?? "—";
-    return `<tr>
+  const badge = (c: any) => {
+    if (c.statut === "exempt") return `<span style="background:var(--accent);color:#fff;padding:2px 8px;border-radius:10px;font-size:.7rem">offert</span>`;
+    if (c.acces?.niveau === "lecture") return `<span style="background:var(--exces);color:#fff;padding:2px 8px;border-radius:10px;font-size:.7rem">échu</span>`;
+    if (c.acces?.niveau === "bientot") return `<span style="background:var(--attention);color:#fff;padding:2px 8px;border-radius:10px;font-size:.7rem">${c.acces.joursRestants} j</span>`;
+    if (c.statut === "archive") return `<span style="background:var(--doux);color:#fff;padding:2px 8px;border-radius:10px;font-size:.7rem">archivé</span>`;
+    return `<span style="background:var(--ok);color:#fff;padding:2px 8px;border-radius:10px;font-size:.7rem">actif</span>`;
+  };
+
+  const lignes = comptes.map((c) => `<tr>
       <td><strong>${c.nom}</strong><br><span class="doux code" style="font-size:.9rem">${c.code}</span></td>
-      <td>${ech}</td>
-      <td>
-        <button class="plat" onclick="copier('${lien}')">Copier le lien</button><br>
-        ${c.statut === "exempt" ? "" : `<button class="plat" onclick="prolonger('${c.id}')">+1 an</button>`}
-      </td></tr>`;
-  }).join("");
+      <td>${c.tickets ?? 0}</td>
+      <td>${c.statut === "exempt" ? "—" : (c.expire_le ?? "—")}<br>${badge(c)}</td>
+      <td style="white-space:nowrap">
+        <button class="plat" onclick="copier('${base}/${c.code}')">Copier le lien</button><br>
+        ${c.statut === "exempt" ? "" : `
+        <select id="d_${c.id}" style="width:auto;padding:4px;font-size:.8rem">
+          <option value="6">6 mois</option><option value="12" selected>12 mois</option><option value="24">24 mois</option>
+        </select>
+        <button class="plat" onclick="prolonger('${c.id}')">Prolonger</button><br>
+        <button class="plat" onclick="offrir('${c.id}')">Rendre gratuit</button>`}
+      </td></tr>`).join("");
+
+  const payants = comptes.filter((c) => c.statut === "actif").length;
 
   return enveloppeHtml("Administration", `
 <h1>Espaces</h1>
+<p class="doux">${comptes.length} espace${comptes.length > 1 ? "s" : ""}, dont ${payants} payant${payants > 1 ? "s" : ""} — ${payants * 65} CHF par an.</p>
+
 <div class="carte" style="margin-top:16px">
   <input id="nom" placeholder="Nom de la personne">
   <label style="display:flex;align-items:center;gap:8px;margin:12px 0">
-    <input type="checkbox" id="gratuit" style="width:auto"> Gratuit
+    <input type="checkbox" id="gratuit" style="width:auto"> Gratuit, sans échéance
   </label>
   <button onclick="creer()" style="width:100%">Créer l'espace</button>
   <div id="resultat" style="margin-top:12px"></div>
 </div>
+
 <h2>Liste</h2>
-<div class="carte"><table>
-  <tr><th>Personne</th><th>Échéance</th><th></th></tr>${lignes}
+<div class="carte" style="overflow-x:auto"><table>
+  <tr><th>Personne</th><th>Tickets</th><th>Jusqu'au</th><th></th></tr>${lignes}
 </table></div>
 <script>
+let dernierLien='';
+const BASE=${JSON.stringify(base)};
 async function creer(){
   const nom=document.getElementById('nom').value.trim();
-  if(!nom)return;
+  if(!nom){alert('Indique un nom.');return}
   const r=await fetch('/api/admin/creer',{method:'POST',headers:{'content-type':'application/json'},
     body:JSON.stringify({nom,gratuit:document.getElementById('gratuit').checked})});
   const d=await r.json();
-  const lien=location.origin+'/'+d.code;
-  document.getElementById('resultat').innerHTML=
-    '<div class="info">Code <strong class="code">'+d.code+'</strong><br><span class="doux">'+lien+'</span><br>'+
-    '<button class="plat" onclick="copier(\\''+lien+'\\')">Copier le lien</button></div>';
+  if(!r.ok){alert(d.erreur||'Échec');return}
+  dernierLien=BASE+'/'+d.code;
+  const boite=document.getElementById('resultat');
+  boite.innerHTML='';
+  const cadre=document.createElement('div');
+  cadre.className='info';
+  const t=document.createElement('div');
+  t.innerHTML='Code <strong class="code">'+d.code+'</strong>';
+  const u=document.createElement('div');
+  u.className='doux';
+  u.style.wordBreak='break-all';
+  u.textContent=dernierLien;
+  const b=document.createElement('button');
+  b.className='plat';
+  b.textContent='Copier le lien';
+  b.onclick=()=>copier(dernierLien);
+  cadre.append(t,u,b);
+  boite.append(cadre);
 }
 async function prolonger(id){
-  await fetch('/api/admin/prolonger',{method:'POST',headers:{'content-type':'application/json'},
+  const mois=+document.getElementById('d_'+id).value;
+  const r=await fetch('/api/admin/prolonger',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({id,mois})});
+  if(!r.ok){alert('Échec');return}
+  location.reload();
+}
+async function offrir(id){
+  if(!confirm('Rendre cet espace gratuit et sans échéance ?'))return;
+  await fetch('/api/admin/gratuit',{method:'POST',headers:{'content-type':'application/json'},
     body:JSON.stringify({id})});
   location.reload();
 }
-function copier(t){navigator.clipboard.writeText(t);}
+function copier(t){
+  navigator.clipboard.writeText(t).then(()=>{},()=>prompt('Copie ce lien :',t));
+}
 </script>`);
 }
 
@@ -230,7 +269,32 @@ export function pageReglages(s: { nom: string; salaire: number; epargne: number 
   <input id="mnt" type="number" inputmode="decimal" placeholder="Montant" style="margin-top:8px">
   <button onclick="ajouter()" style="width:100%;margin-top:12px">Ajouter</button>
 </div>
+<h2>Recommencer</h2>
+<div class="carte">
+  <button onclick="vider('depenses')" style="width:100%;background:var(--accent)">Effacer toutes les dépenses</button>
+  <div class="doux" style="margin:6px 0 14px">Tickets et lignes effacés. Salaire, charges fixes, catégories, budgets et apprentissage conservés.</div>
+
+  <button onclick="vider('apprentissage')" style="width:100%;background:var(--accent)">Oublier l'apprentissage</button>
+  <div class="doux" style="margin:6px 0 14px">Les corrections mémorisées sont effacées. Les prochains tickets repartent de zéro pour le classement.</div>
+
+  <button onclick="vider('tout')" style="width:100%;background:var(--exces)">Tout remettre à zéro</button>
+  <div class="doux" style="margin-top:6px">Tout est effacé : dépenses, charges fixes, budgets, catégories ajoutées, salaire, épargne. Les catégories d'origine sont recréées. Ton code d'accès ne change pas.</div>
+</div>
+
 <script>
+async function vider(portee){
+  const textes={
+    depenses:'Effacer toutes les dépenses ? Les réglages sont conservés.',
+    apprentissage:"Oublier toutes les corrections mémorisées ?",
+    tout:'TOUT remettre à zéro ? Dépenses, charges fixes, budgets, catégories et salaire seront effacés. Cette action est définitive.'
+  };
+  if(!confirm(textes[portee]))return;
+  if(portee==='tout' && prompt('Pour confirmer, tape : EFFACER')!=='EFFACER')return;
+  const r=await fetch('/api/vider',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({portee})});
+  if(!r.ok){alert('Échec');return}
+  location.href='/';
+}
 function maj(){
   const s=+document.getElementById('salaire').value||0, e=+document.getElementById('epargne').value||0;
   document.getElementById('pct').textContent = s>0 ? 'Épargne = '+(e/s*100).toFixed(0)+' % du salaire' : '';
