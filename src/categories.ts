@@ -13,7 +13,7 @@ export const CATEGORIES_DEFAUT: CategorieDefaut[] = [
   { nom: "Restaurant",        description: "restaurant, take-away, livraison, café, cantine",     couleur: "#5a8f4a", systeme: 0 },
   { nom: "Alcool",            description: "vin, bière, spiritueux, apéritifs — JAMAIS dans Nourriture", couleur: "#7b3fa0", systeme: 1 },
   { nom: "Tabac",             description: "cigarettes, tabac, puff, accessoires — JAMAIS dans Nourriture", couleur: "#9b4fc0", systeme: 1 },
-  { nom: "Ménage / Hygiène",  description: "lessive, produits d'entretien, papier, savon, dentifrice", couleur: "#4a7f8f", systeme: 0 },
+  { nom: "Ménage / Hygiène",  description: "lessive, produits d'entretien, papier, savon, dentifrice, rasoir, tondeuse à barbe, aspirateur et petit électroménager du foyer", couleur: "#4a7f8f", systeme: 0 },
   { nom: "Transport",         description: "essence, CFF, parking, vignette, entretien véhicule",  couleur: "#3f6fa0", systeme: 0 },
   { nom: "Santé",             description: "pharmacie, médecin, dentiste, opticien, franchise",    couleur: "#c05f5f", systeme: 0 },
   { nom: "Vêtements",         description: "habits, chaussures, retouches",                        couleur: "#a0623f", systeme: 0 },

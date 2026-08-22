@@ -32,13 +32,22 @@ Catégories disponibles pour ce foyer :
 ${liste}
 
 Règles :
-- Une ligne par article. Ne regroupe pas.
+- Une ligne par article acheté. Ne regroupe pas.
+- RABAIS : si une ligne de rabais, remise ou « offre spéciale » suit un article,
+  soustrais-la du prix de cet article et ne crée pas de ligne séparée.
+  Exemple : « DYSON 849.00 » puis « Offre Spéciale -250.00 » donne une seule
+  ligne DYSON à 599.00.
+- Ignore les lignes techniques : numéros d'article, codes-barres, sous-totaux,
+  points de fidélité, rendu de monnaie, mentions de panier.
+- MONNAIE : si le ticket affiche plusieurs devises, retiens le total en francs
+  suisses (CHF, noté parfois « f »), pas la conversion en euros.
 - L'alcool et le tabac ne vont JAMAIS dans Nourriture, même achetés au supermarché.
 - Les frais de port, frais de dossier et taxes vont dans Divers.
-- Ignore les rabais globaux, les points de fidélité et le rendu de monnaie.
-- Si le total du ticket ne correspond pas à la somme des lignes, garde le total imprimé.
-- confiance : 0 à 1. Sous 0.6 la ligne sera revue à la main, ne force pas.
-- Montants en CHF, nombres décimaux, pas de symbole monétaire.
+- Si le total imprimé ne correspond pas à la somme des lignes, garde le total imprimé.
+- confiance : 0 à 1. Mets une confiance BASSE (sous 0.5) dès que tu hésites entre
+  deux catégories ou que l'article ne correspond clairement à aucune. Ne devine pas :
+  une ligne peu sûre sera soumise à la personne, c'est le comportement voulu.
+- Montants en nombres décimaux, sans symbole monétaire.
 - Dates au format AAAA-MM-JJ.
 
 Réponds UNIQUEMENT avec cet objet JSON, sans texte autour, sans balises Markdown :

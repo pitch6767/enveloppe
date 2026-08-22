@@ -2,7 +2,7 @@ import { CATEGORIES_DEFAUT, SEUIL_CONFIANCE } from "./categories";
 import { genererCode, genererId, normaliserLibelle, calculerEnveloppe, projeter, chf } from "./lib";
 import { evaluerAcces, peutEcrire, prolongerUnAn, type Acces } from "./acces";
 import { analyserImage, type CategorieRow } from "./vision";
-import { pageEntree, pageAdmin, pageApp, pageReglages, pageDepenses, pageCategories } from "./pages";
+import { pageEntree, pageAdmin, pageApp, pageReglages, pageDepenses, pageCategories, pageClasser } from "./pages";
 
 export interface Env {
   DB: D1Database;
@@ -163,6 +163,19 @@ export default {
     if (!s) return html(pageEntree());
 
     if (p === "/") return html(pageApp(s, await etatDuMois(env, s)));
+    if (p === "/classer") {
+      const l = await env.DB.prepare(
+        `SELECT l.id, l.libelle, l.montant, d.marchand, d.date
+           FROM lignes l JOIN depenses d ON d.id = l.depense_id
+          WHERE l.compte_id = ?1 AND l.confiance < ?2
+          ORDER BY d.date DESC, l.montant DESC`,
+      ).bind(s.compte_id, SEUIL_CONFIANCE).all<any>();
+      const c = await env.DB.prepare(
+        `SELECT id, nom, couleur FROM categories WHERE compte_id = ?1 ORDER BY ordre`,
+      ).bind(s.compte_id).all<any>();
+      return html(pageClasser(l.results ?? [], c.results ?? []));
+    }
+
     if (p === "/depenses") {
       const d = await env.DB.prepare(
         `SELECT id, date, marchand, total, source FROM depenses
@@ -314,8 +327,21 @@ async function api(req: Request, env: Env, s: Session, p: string): Promise<Respo
   }
 
   if (p === "/api/scan" && req.method === "POST") {
-    if (!ecriture) return json({ erreur: "echeance" }, 402);
-    return scanner(req, env, s);
+    if (!ecriture) return json({ erreur: "ton accès est arrivé à échéance" }, 402);
+    try {
+      return await scanner(req, env, s);
+    } catch (e: any) {
+      // Sans message lisible, un échec de scan est indébogable depuis un téléphone.
+      const m = String(e?.message ?? e);
+      const clair = m.includes("credit") || m.includes("balance")
+        ? "crédit Anthropic épuisé"
+        : m.includes("401") || m.includes("authentication")
+          ? "clé Anthropic invalide ou absente (secret ANTHROPIC_API_KEY)"
+          : m.includes("too large") || m.includes("413")
+            ? "image trop lourde"
+            : m.slice(0, 200);
+      return json({ erreur: clair }, 500);
+    }
   }
 
   if (p.startsWith("/api/ligne/") && p.endsWith("/scinder") && req.method === "POST") {
@@ -444,5 +470,14 @@ async function scanner(req: Request, env: Env, s: Session): Promise<Response> {
   }
 
   await env.DB.batch(stmts);
-  return json({ id: depId, marchand: extrait.marchand, total: chf(extrait.total), lignes: extrait.lignes.length });
+
+  const aClasser = extrait.lignes.filter((l) => {
+    const parRegleId = parRegle.get(normaliserLibelle(l.libelle));
+    return !parRegleId && l.confiance < SEUIL_CONFIANCE;
+  }).length;
+
+  return json({
+    id: depId, marchand: extrait.marchand, total: chf(extrait.total),
+    lignes: extrait.lignes.length, aClasser,
+  });
 }

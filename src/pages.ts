@@ -141,7 +141,7 @@ ${bandeau}${alerteRythme}
     − épargne ${chf(env_.epargne)} (${env_.pctEpargne.toFixed(0)} %)
   </div>
 </div>
-${e.aVerifier > 0 ? `<div class="info">${e.aVerifier} ligne${e.aVerifier > 1 ? "s" : ""} à vérifier.</div>` : ""}
+${e.aVerifier > 0 ? `<div class="info"><a href="/classer" style="color:inherit"><strong>${e.aVerifier} ligne${e.aVerifier > 1 ? "s" : ""} à classer</strong> — touche ici pour choisir la catégorie.</a></div>` : ""}
 <div style="display:flex;gap:8px;margin-bottom:12px">
   <button onclick="photo.click()" style="flex:1">Prendre une photo</button>
   <button onclick="fic.click()" style="flex:1;background:var(--accent)">Choisir un fichier</button>
@@ -170,12 +170,29 @@ zone.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)envoyer(f)
 document.addEventListener('paste',e=>{
   for(const it of e.clipboardData.items){if(it.type.startsWith('image/'))envoyer(it.getAsFile())}
 });
+async function reduire(f){
+  // Les photos de téléphone dépassent souvent la limite de l'API.
+  if(f.size < 900000) return f;
+  const img=await createImageBitmap(f);
+  const max=1600, e=Math.min(1, max/Math.max(img.width,img.height));
+  const c=document.createElement('canvas');
+  c.width=Math.round(img.width*e); c.height=Math.round(img.height*e);
+  c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+  const b=await new Promise(r=>c.toBlob(r,'image/jpeg',0.85));
+  return new File([b],'ticket.jpg',{type:'image/jpeg'});
+}
 async function envoyer(f){
   zone.textContent='Lecture en cours…';
-  const fd=new FormData();fd.append('image',f);
-  const r=await fetch('/api/scan',{method:'POST',body:fd});
-  if(!r.ok){zone.textContent='Échec de la lecture. Réessaie.';return}
-  location.reload();
+  try{
+    const fd=new FormData();
+    fd.append('image', await reduire(f));
+    const r=await fetch('/api/scan',{method:'POST',body:fd});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){zone.textContent='Échec : '+(d.erreur||('erreur '+r.status));return}
+    location.href = d.aClasser>0 ? '/classer' : '/depenses';
+  }catch(e){
+    zone.textContent='Échec : '+e.message;
+  }
 }
 </script>`);
 }
@@ -345,6 +362,44 @@ async function ajouter(){
 async function suppr(id){
   if(!confirm('Supprimer ? Les dépenses basculent dans Divers.'))return;
   await fetch('/api/categorie/'+id,{method:'DELETE'});
+  location.reload();
+}
+</script>`);
+}
+
+export function pageClasser(lignes: any[], cats: any[]): string {
+  if (!lignes.length) {
+    return enveloppeHtml("Tout est classé", `
+<h1>Tout est classé</h1>
+<div class="carte doux">Aucune ligne en attente.</div>
+<p><a href="/" style="color:var(--accent)">← Retour</a></p>`);
+  }
+
+  const boutons = (ligne: any) => cats.map((c) =>
+    `<button class="choix" onclick="choisir('${ligne.id}','${c.id}')"
+      style="background:${c.couleur};margin:4px 4px 0 0;padding:8px 12px;font-size:.85rem">${c.nom}</button>`,
+  ).join("");
+
+  const blocs = lignes.map((l) => `
+    <div class="carte">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <strong>${l.libelle}</strong>
+        <span class="gros" style="font-size:1.2rem">${chf(l.montant)}</span>
+      </div>
+      <div class="doux" style="margin:4px 0 10px">${l.marchand ?? ""} · ${l.date}</div>
+      <div>${boutons(l)}</div>
+    </div>`).join("");
+
+  return enveloppeHtml("À classer", `
+<h1>Où ranger ?</h1>
+<p class="doux">Je n'ai pas su décider seul. Touche la bonne catégorie — je m'en souviendrai la prochaine fois.</p>
+${blocs}
+<p style="margin:20px 0 40px"><a href="/" style="color:var(--accent)">← Retour</a></p>
+<script>
+async function choisir(ligne,categorie){
+  const r=await fetch('/api/ligne/'+ligne,{method:'PATCH',headers:{'content-type':'application/json'},
+    body:JSON.stringify({categorie_id:categorie})});
+  if(!r.ok){alert('Échec');return}
   location.reload();
 }
 </script>`);

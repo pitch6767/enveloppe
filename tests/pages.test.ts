@@ -1,6 +1,6 @@
 // Rend chaque page, extrait les <script> du HTML produit, valide la syntaxe.
 import { describe, it, expect } from "vitest";
-import { pageEntree, pageAdmin, pageApp, pageReglages, pageDepenses, pageCategories } from "../src/pages";
+import { pageEntree, pageAdmin, pageApp, pageReglages, pageDepenses, pageCategories, pageClasser } from "../src/pages";
 import { calculerEnveloppe, projeter } from "../src/lib";
 
 const cats = [
@@ -29,6 +29,11 @@ const pages: Record<string, string> = {
   reglages: pageReglages(s, etat.fixes),
   depenses: pageDepenses(deps, lignes, cats),
   categories: pageCategories(cats),
+  classer: pageClasser(
+    [{ id: "lig_2", libelle: "DYSON PISTON ANIMA", montant: 599, marchand: "Fnac", date: "2026-08-19" }],
+    cats,
+  ),
+  classerVide: pageClasser([], cats),
 };
 
 describe("pages rendues", () => {
@@ -82,6 +87,24 @@ describe("contenu des pages", () => {
   it("chaque ligne de dépense offre toutes les catégories", () => {
     expect(pages.depenses).toContain("Scinder");
     expect((pages.depenses.match(/<select/g) ?? []).length).toBe(lignes.length);
+  });
+
+  it("l'écran de classement propose toutes les catégories", () => {
+    for (const c of cats) expect(pages.classer).toContain(c.nom);
+    expect(pages.classer).toContain("599");
+  });
+
+  it("l'écran de classement vide ne montre pas de boutons", () => {
+    expect(pages.classerVide).toContain("Tout est classé");
+    expect(pages.classerVide).not.toContain("choisir(");
+  });
+
+  it("le badge d'accueil renvoie vers le classement", () => {
+    expect(pages.app).toContain('href="/classer"');
+  });
+
+  it("l'image est réduite avant envoi", () => {
+    expect(pages.app).toContain("createImageBitmap");
   });
 
   it("le bandeau d'échéance s'affiche en lecture seule", () => {
