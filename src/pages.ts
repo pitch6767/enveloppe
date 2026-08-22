@@ -278,7 +278,7 @@ export function pageDepenses(deps: any[], lignes: any[], cats: any[]): string {
 
     return `<h2>${d.date} — ${d.marchand ?? "sans nom"} — ${chf(d.total)}</h2>
       <div class="carte">${rangs || '<div class="doux">Aucune ligne.</div>'}
-        <button class="plat" style="color:var(--exces)" onclick="supprDep('${d.id}')">Supprimer ce ticket</button>
+        <button style="background:var(--exces);width:100%;margin-top:12px" onclick="supprDep('${d.id}')">Annuler ce ticket</button>
       </div>`;
   }).join("");
 
@@ -310,7 +310,7 @@ async function scinder(id,total){
   location.reload();
 }
 async function supprDep(id){
-  if(!confirm('Supprimer ce ticket et toutes ses lignes ?'))return;
+  if(!confirm('Annuler ce ticket ? Toutes ses lignes seront effacées.'))return;
   await fetch('/api/depense/'+id,{method:'DELETE'});
   location.reload();
 }
@@ -388,6 +388,8 @@ export function pageClasser(lignes: any[], cats: any[]): string {
       </div>
       <div class="doux" style="margin:4px 0 10px">${l.marchand ?? ""} · ${l.date}</div>
       <div>${boutons(l)}</div>
+      <button class="plat" style="color:var(--exces);margin-top:10px"
+              onclick="annuler('${l.depense_id}')">Annuler tout ce ticket</button>
     </div>`).join("");
 
   return enveloppeHtml("À classer", `
@@ -400,6 +402,11 @@ async function choisir(ligne,categorie){
   const r=await fetch('/api/ligne/'+ligne,{method:'PATCH',headers:{'content-type':'application/json'},
     body:JSON.stringify({categorie_id:categorie})});
   if(!r.ok){alert('Échec');return}
+  location.reload();
+}
+async function annuler(dep){
+  if(!confirm('Annuler ce ticket ? Toutes ses lignes seront effacées.'))return;
+  await fetch('/api/depense/'+dep,{method:'DELETE'});
   location.reload();
 }
 </script>`);

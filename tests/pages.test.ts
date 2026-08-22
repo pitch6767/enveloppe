@@ -30,7 +30,7 @@ const pages: Record<string, string> = {
   depenses: pageDepenses(deps, lignes, cats),
   categories: pageCategories(cats),
   classer: pageClasser(
-    [{ id: "lig_2", libelle: "DYSON PISTON ANIMA", montant: 599, marchand: "Fnac", date: "2026-08-19" }],
+    [{ id: "lig_2", depense_id: "dep_1", libelle: "DYSON PISTON ANIMA", montant: 599, marchand: "Fnac", date: "2026-08-19" }],
     cats,
   ),
   classerVide: pageClasser([], cats),
@@ -105,6 +105,11 @@ describe("contenu des pages", () => {
 
   it("l'image est réduite avant envoi", () => {
     expect(pages.app).toContain("createImageBitmap");
+  });
+
+  it("un ticket s'annule depuis les deux écrans", () => {
+    expect(pages.depenses).toContain("Annuler ce ticket");
+    expect(pages.classer).toContain("Annuler tout ce ticket");
   });
 
   it("le bandeau d'échéance s'affiche en lecture seule", () => {

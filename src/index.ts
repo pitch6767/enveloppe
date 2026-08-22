@@ -416,8 +416,13 @@ async function api(req: Request, env: Env, s: Session, p: string): Promise<Respo
   }
 
   if (p.startsWith("/api/depense/") && req.method === "DELETE") {
-    await env.DB.prepare(`DELETE FROM depenses WHERE id = ?1 AND compte_id = ?2`)
-      .bind(p.split("/")[3], s.compte_id).run();
+    const id = p.split("/")[3];
+    // Les lignes sont supprimées explicitement : sans cela, une cascade non
+    // appliquée laisserait des lignes orphelines qui faussent les totaux.
+    await env.DB.batch([
+      env.DB.prepare(`DELETE FROM lignes WHERE depense_id = ?1 AND compte_id = ?2`).bind(id, s.compte_id),
+      env.DB.prepare(`DELETE FROM depenses WHERE id = ?1 AND compte_id = ?2`).bind(id, s.compte_id),
+    ]);
     return json({ ok: true });
   }
 
