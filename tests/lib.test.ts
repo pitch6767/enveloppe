@@ -116,3 +116,31 @@ describe("CATEGORIES_DEFAUT", () => {
     expect(new Set(noms).size).toBe(noms.length);
   });
 });
+
+describe("parserElucidation", () => {
+  it("lit un resultat de recherche", async () => {
+    const { parserElucidation } = await import("../src/vision");
+    const r = parserElucidation('{"resultats":[{"libelle":"DYSON PISTON ANIMA","quoi":"aspirateur sans fil","categorie":"Ménage / Hygiène","confiance":0.92}]}');
+    expect(r[0].quoi).toBe("aspirateur sans fil");
+    expect(r[0].categorie).toBe("Ménage / Hygiène");
+  });
+  it("survit aux backticks", async () => {
+    const { parserElucidation } = await import("../src/vision");
+    const r = parserElucidation('```json\n{"resultats":[{"libelle":"X","categorie":"Divers","confiance":0.2}]}\n```');
+    expect(r).toHaveLength(1);
+  });
+  it("rend une liste vide plutot que d'echouer", async () => {
+    const { parserElucidation } = await import("../src/vision");
+    expect(parserElucidation("je n'ai rien trouve")).toEqual([]);
+    expect(parserElucidation('{"resultats": pas du json}')).toEqual([]);
+  });
+});
+
+describe("construirePromptRecherche", () => {
+  it("numerote les articles et liste les categories", async () => {
+    const { construirePromptRecherche } = await import("../src/vision");
+    const p = construirePromptRecherche(["BABYLISS MT996E"], [{ id: "1", nom: "Ménage / Hygiène", description: "rasoir, tondeuse" }]);
+    expect(p).toContain("1. BABYLISS MT996E");
+    expect(p).toContain("Ménage / Hygiène — rasoir, tondeuse");
+  });
+});

@@ -1,7 +1,7 @@
 import { CATEGORIES_DEFAUT, SEUIL_CONFIANCE } from "./categories";
 import { genererCode, genererId, normaliserLibelle, calculerEnveloppe, projeter, chf } from "./lib";
 import { evaluerAcces, peutEcrire, prolongerUnAn, type Acces } from "./acces";
-import { analyserImage, type CategorieRow } from "./vision";
+import { analyserImage, elucider, type CategorieRow } from "./vision";
 import { pageEntree, pageAdmin, pageApp, pageReglages, pageDepenses, pageCategories, pageClasser } from "./pages";
 
 export interface Env {
@@ -448,6 +448,28 @@ async function scanner(req: Request, env: Env, s: Session): Promise<Response> {
   const parRegle = new Map((regles.results ?? []).map((r) => [r.libelle_norm, r.categorie_id]));
   const parNom = new Map(categories.map((c) => [c.nom, c.id]));
   const divers = parNom.get("Divers") ?? categories[categories.length - 1]?.id ?? null;
+
+  // Deuxième passe : ce que Vision n'a pas su nommer, on va le chercher sur le web.
+  const incertaines = extrait.lignes.filter(
+    (l) => !parRegle.has(normaliserLibelle(l.libelle)) && l.confiance < SEUIL_CONFIANCE,
+  );
+  if (incertaines.length) {
+    try {
+      const trouve = await elucider(env.ANTHROPIC_API_KEY, incertaines.map((l) => l.libelle), categories);
+      for (const t of trouve) {
+        const cible = incertaines.find(
+          (l) => normaliserLibelle(l.libelle) === normaliserLibelle(t.libelle),
+        );
+        if (cible && t.confiance > cible.confiance && parNom.has(t.categorie)) {
+          cible.categorie = t.categorie;
+          cible.confiance = t.confiance;
+          if (t.quoi) cible.libelle = `${cible.libelle} (${t.quoi})`;
+        }
+      }
+    } catch {
+      // La recherche est un confort : son échec ne doit pas perdre le ticket.
+    }
+  }
 
   const depId = genererId("dep");
   const source = form.get("source") === "screenshot" ? "screenshot" : "scan";

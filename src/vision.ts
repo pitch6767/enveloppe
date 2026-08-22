@@ -112,3 +112,90 @@ export function parserReponse(texte: string): TicketExtrait {
     })),
   };
 }
+
+export interface Elucidation {
+  libelle: string;
+  categorie: string;
+  confiance: number;
+  quoi: string;
+}
+
+/**
+ * Deuxième passe sur les seules lignes incertaines : le modèle cherche sur le web
+ * ce qu'est le produit avant de trancher. Une seule requête pour toutes les lignes.
+ */
+export function construirePromptRecherche(libelles: string[], categories: CategorieRow[]): string {
+  const liste = categories.map((c) => `- ${c.nom} — ${c.description}`).join("\n");
+  const articles = libelles.map((l, i) => `${i + 1}. ${l}`).join("\n");
+
+  return `Voici des libellés d'articles relevés sur des tickets de caisse suisses. Ils sont
+abrégés et je n'ai pas su les classer.
+
+Pour chacun, cherche sur le web de quel produit il s'agit (marque, modèle, type d'objet),
+puis range-le dans une des catégories ci-dessous.
+
+Articles :
+${articles}
+
+Catégories :
+${liste}
+
+Si après recherche le produit reste indéterminé, mets une confiance basse plutôt que
+d'inventer : la personne tranchera elle-même.
+
+Réponds UNIQUEMENT avec ce JSON, sans texte autour, sans balises Markdown :
+{"resultats":[{"libelle":"le libellé d'origine, recopié tel quel","quoi":"ce que c'est en trois mots","categorie":"...","confiance":0.0}]}`;
+}
+
+export async function elucider(
+  apiKey: string,
+  libelles: string[],
+  categories: CategorieRow[],
+): Promise<Elucidation[]> {
+  if (!libelles.length) return [];
+
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 2000,
+      messages: [{ role: "user", content: construirePromptRecherche(libelles, categories) }],
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 4 }],
+    }),
+  });
+
+  if (!r.ok) throw new Error(`Recherche ${r.status}: ${await r.text()}`);
+
+  const data = await r.json<any>();
+  const texte = (data.content ?? [])
+    .filter((b: any) => b.type === "text")
+    .map((b: any) => b.text)
+    .join("");
+
+  return parserElucidation(texte);
+}
+
+export function parserElucidation(texte: string): Elucidation[] {
+  const net = texte.replace(/```json/gi, "").replace(/```/g, "").trim();
+  const debut = net.indexOf("{");
+  const fin = net.lastIndexOf("}");
+  if (debut === -1 || fin === -1) return [];
+
+  try {
+    const brut = JSON.parse(net.slice(debut, fin + 1));
+    return (brut.resultats ?? []).map((x: any) => ({
+      libelle: String(x.libelle ?? "").trim(),
+      categorie: String(x.categorie ?? ""),
+      confiance: typeof x.confiance === "number" ? x.confiance : 0,
+      quoi: String(x.quoi ?? "").trim(),
+    }));
+  } catch {
+    // La recherche est un bonus : si elle échoue, la ligne part au classement manuel.
+    return [];
+  }
+}
