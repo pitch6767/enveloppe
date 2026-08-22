@@ -309,6 +309,27 @@ async function apiAdmin(req: Request, env: Env, p: string): Promise<Response> {
     return json({ expire_le: nouvelle });
   }
 
+  if (p === "/api/admin/code") {
+    const voulu = String(corps.code ?? "").replace(/\D/g, "");
+    if (!/^\d{6}$/.test(voulu)) return json({ erreur: "il faut exactement six chiffres" }, 400);
+
+    // Un code identifie un espace : deux espaces ne peuvent pas partager le même.
+    const pris = await env.DB.prepare(
+      `SELECT compte_id FROM codes WHERE code = ?1`,
+    ).bind(voulu).first<any>();
+    if (pris && pris.compte_id !== corps.id) {
+      return json({ erreur: "ce code est déjà utilisé par un autre espace" }, 409);
+    }
+
+    const actuel = await env.DB.prepare(
+      `SELECT id FROM codes WHERE compte_id = ?1 ORDER BY cree_le LIMIT 1`,
+    ).bind(corps.id).first<any>();
+    if (!actuel) return json({ erreur: "espace inconnu" }, 404);
+
+    await env.DB.prepare(`UPDATE codes SET code = ?2 WHERE id = ?1`).bind(actuel.id, voulu).run();
+    return json({ code: voulu });
+  }
+
   if (p === "/api/admin/gratuit") {
     await env.DB.prepare(`UPDATE comptes SET statut = 'exempt', expire_le = NULL WHERE id = ?1`)
       .bind(corps.id).run();

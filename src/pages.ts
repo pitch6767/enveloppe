@@ -66,6 +66,7 @@ export function pageAdmin(comptes: any[], base: string): string {
       <td>${c.statut === "exempt" ? "—" : (c.expire_le ?? "—")}<br>${badge(c)}</td>
       <td style="white-space:nowrap">
         <button class="plat" onclick="copier('${base}/${c.code}')">Copier le lien</button><br>
+        <button class="plat" onclick="changerCode('${c.id}','${c.code}')">Changer le code</button><br>
         ${c.statut === "exempt" ? "" : `
         <select id="d_${c.id}" style="width:auto;padding:4px;font-size:.8rem">
           <option value="6">6 mois</option><option value="12" selected>12 mois</option><option value="24">24 mois</option>
@@ -126,6 +127,16 @@ async function prolonger(id){
   const r=await fetch('/api/admin/prolonger',{method:'POST',headers:{'content-type':'application/json'},
     body:JSON.stringify({id,mois})});
   if(!r.ok){alert('Échec');return}
+  location.reload();
+}
+async function changerCode(id,actuel){
+  const voulu=prompt('Nouveau code à six chiffres pour cet espace :',actuel);
+  if(!voulu)return;
+  const r=await fetch('/api/admin/code',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({id,code:voulu})});
+  const d=await r.json();
+  if(!r.ok){alert(d.erreur||'Échec');return}
+  alert('Nouveau code : '+d.code+' — le lien précédent ne fonctionne plus, renvoie le nouveau à la personne.');
   location.reload();
 }
 async function offrir(id){

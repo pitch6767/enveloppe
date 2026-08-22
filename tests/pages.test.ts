@@ -125,6 +125,11 @@ describe("contenu des pages", () => {
     expect(pageApp(s, etat)).not.toContain("achats exceptionnels");
   });
 
+  it("le code de chaque espace est modifiable", () => {
+    expect(pages.admin).toContain("Changer le code");
+    expect(pages.admin).toContain("changerCode('cpt_1','483927')");
+  });
+
   it("l'admin propose plusieurs durées de prolongation", () => {
     expect(pages.admin).toContain("6 mois");
     expect(pages.admin).toContain("24 mois");
