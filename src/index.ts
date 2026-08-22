@@ -279,8 +279,9 @@ async function admin(req: Request, env: Env): Promise<Response> {
     acces: evaluerAcces({ statut: c.statut, expire_le: c.expire_le }, new Date()),
   }));
 
-  const base = new URL(req.url).origin;
-  return reponseAdmin(env.ADMIN_CODE, pageAdmin(avecAcces, base));
+  const url = new URL(req.url);
+  const nouveau = (url.searchParams.get("nouveau") ?? "").replace(/\D/g, "");
+  return reponseAdmin(env.ADMIN_CODE, pageAdmin(avecAcces, url.origin, nouveau || null));
 }
 
 async function apiAdmin(req: Request, env: Env, p: string): Promise<Response> {

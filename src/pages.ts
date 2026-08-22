@@ -51,7 +51,7 @@ ${erreur ? `<div class="alerte" style="margin-top:12px">${erreur}</div>` : ""}
 </form>`);
 }
 
-export function pageAdmin(comptes: any[], base: string): string {
+export function pageAdmin(comptes: any[], base: string, nouveau: string | null = null): string {
   const badge = (c: any) => {
     if (c.statut === "exempt") return `<span style="background:var(--accent);color:#fff;padding:2px 8px;border-radius:10px;font-size:.7rem">offert</span>`;
     if (c.acces?.niveau === "lecture") return `<span style="background:var(--exces);color:#fff;padding:2px 8px;border-radius:10px;font-size:.7rem">échu</span>`;
@@ -90,7 +90,12 @@ export function pageAdmin(comptes: any[], base: string): string {
     <input type="checkbox" id="gratuit" style="width:auto"> Gratuit, sans échéance
   </label>
   <button onclick="creer()" style="width:100%">Créer l'espace</button>
-  <div id="resultat" style="margin-top:12px"></div>
+  ${nouveau ? `<div class="info" style="margin-top:12px">
+    <div>Espace créé — code <strong class="code">${nouveau}</strong></div>
+    <input readonly value="${base}/${nouveau}" onclick="this.select()"
+           style="width:100%;font-size:.8rem;margin-top:6px">
+    <button class="plat" onclick="copier('${base}/${nouveau}',this)">Copier le lien</button>
+  </div>` : ""}
 </div>
 
 <h2>Liste</h2>
@@ -98,7 +103,6 @@ export function pageAdmin(comptes: any[], base: string): string {
   <tr><th>Personne</th><th>Tickets</th><th>Jusqu'au</th><th></th></tr>${lignes}
 </table></div>
 <script>
-let dernierLien='';
 const BASE=${JSON.stringify(base)};
 async function creer(){
   const nom=document.getElementById('nom').value.trim();
@@ -107,33 +111,7 @@ async function creer(){
     body:JSON.stringify({nom,gratuit:document.getElementById('gratuit').checked})});
   const d=await r.json();
   if(!r.ok){alert(d.erreur||'Échec');return}
-  dernierLien=BASE+'/'+d.code;
-  const boite=document.getElementById('resultat');
-  boite.innerHTML='';
-  const cadre=document.createElement('div');
-  cadre.className='info';
-  const t=document.createElement('div');
-  t.innerHTML='Code <strong class="code">'+d.code+'</strong>';
-  const u=document.createElement('input');
-  u.readOnly=true;
-  u.value=dernierLien;
-  u.style.width='100%';
-  u.style.fontSize='.8rem';
-  u.style.marginTop='6px';
-  u.onclick=()=>u.select();
-  const b=document.createElement('button');
-  b.className='plat';
-  b.textContent='Copier le lien';
-  b.onclick=()=>copier(dernierLien,b);
-  cadre.append(t,u,b);
-  boite.append(cadre);
-}
-async function prolonger(id){
-  const mois=+document.getElementById('d_'+id).value;
-  const r=await fetch('/api/admin/prolonger',{method:'POST',headers:{'content-type':'application/json'},
-    body:JSON.stringify({id,mois})});
-  if(!r.ok){alert('Échec');return}
-  location.reload();
+  location.href='/admin?nouveau='+d.code;
 }
 async function changerCode(id,actuel){
   const voulu=prompt('Nouveau code à six chiffres pour cet espace :',actuel);

@@ -31,6 +31,10 @@ const pages: Record<string, string> = {
     { id: "cpt_2", nom: "Ma fille", statut: "exempt", expire_le: null, code: "112233",
       tickets: 3, acces: { niveau: "ouvert", joursRestants: null } },
   ], "https://enveloppe.pitch67.workers.dev"),
+  adminNouveau: pageAdmin([
+    { id: "cpt_1", nom: "Sandrine", statut: "actif", expire_le: "2027-08-18", code: "483927",
+      tickets: 12, acces: { niveau: "ouvert", joursRestants: 300 } },
+  ], "https://enveloppe.pitch67.workers.dev", "263943"),
   app: pageApp(s, etat),
   reglages: pageReglages(s, etat.fixes),
   depenses: pageDepenses(deps, lignes, cats),
@@ -123,6 +127,16 @@ describe("contenu des pages", () => {
                    projection: projeter(476.5, 901, new Date(2026, 7, 10)) };
     expect(pageApp(s, avec)).toContain("achats exceptionnels");
     expect(pageApp(s, etat)).not.toContain("achats exceptionnels");
+  });
+
+  it("le code fraîchement créé survit au rechargement de la liste", () => {
+    expect(pages.adminNouveau).toContain("263943");
+    expect(pages.adminNouveau).toContain("Espace créé");
+    expect(pages.adminNouveau).toContain("https://enveloppe.pitch67.workers.dev/263943");
+  });
+
+  it("sans création, aucun encadré ne s'affiche", () => {
+    expect(pages.admin).not.toContain("Espace créé");
   });
 
   it("le lien est visible et sélectionnable, pas seulement copiable", () => {
