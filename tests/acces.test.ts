@@ -66,3 +66,14 @@ describe("joursEntre", () => {
     expect(joursEntre(new Date("2026-03-28T23:00:00Z"), new Date("2026-03-30T01:00:00Z"))).toBe(2);
   });
 });
+
+describe("cookies", () => {
+  it("le cookie d'administration porte sur tout le site", async () => {
+    const src = await import("node:fs").then((fs) =>
+      fs.readFileSync(new URL("../src/index.ts", import.meta.url), "utf8"));
+    const pose = src.match(/env_admin=[^`]*`/)?.[0] ?? "";
+    // Path=/admin empêcherait l'envoi du cookie vers /api/admin/...
+    expect(pose).toContain("Path=/;");
+    expect(pose).not.toContain("Path=/admin");
+  });
+});

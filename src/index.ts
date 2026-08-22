@@ -237,7 +237,9 @@ async function admin(req: Request, env: Env): Promise<Response> {
           status: 302,
           headers: {
             location: "/admin",
-            "set-cookie": `env_admin=${env.ADMIN_CODE}; Path=/admin; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax`,
+            // Path=/ et non /admin : sans cela le cookie n'accompagne pas les
+            // appels vers /api/admin/... et toute action est refusée.
+            "set-cookie": `env_admin=${env.ADMIN_CODE}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax`,
           },
         });
       }
