@@ -55,3 +55,16 @@ Secrets requis : `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
 ## Règles de travail
 
 Une substitution à la fois. `npm run bundle` avant chaque push. Version incrémentée à chaque push.
+
+## Piège de migration — à ne jamais oublier
+
+`DROP TABLE comptes` déclenche les suppressions en cascade de toutes les tables
+qui la référencent : codes, categories, depenses, lignes, fixes, regles. Le
+schéma « créer une table de remplacement, copier, supprimer l'ancienne » —
+employé par les migrations 0002 et 0004 — a vidé toutes les données enfants en
+production le 20 août 2026.
+
+Pour toute évolution de `comptes` : utiliser `ALTER TABLE ... ADD COLUMN`.
+Si une contrainte doit changer, la recréation doit sauvegarder et restaurer
+chaque table enfant dans la même migration, ou la contrainte doit être portée
+par le code plutôt que par le schéma.

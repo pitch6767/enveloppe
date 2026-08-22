@@ -64,8 +64,8 @@ export function pageAdmin(comptes: any[], base: string, nouveau: string | null =
   const lignes = comptes.map((c) => `<tr>
       <td><strong>${c.nom}</strong></td>
       <td><span class="code" style="font-size:1.1rem;font-weight:600;color:var(--texte)">${c.code}</span><br>
-        <input readonly value="${base}/${c.code}" onclick="this.select()"
-               style="font-size:.7rem;padding:3px;margin-top:4px;width:100%;min-width:170px;color:var(--doux)"></td>
+        <input readonly value="${base}/${c.code}" onclick="copierChamp(this)" title="Cliquer pour copier"
+               style="font-size:.7rem;padding:3px;margin-top:4px;width:100%;min-width:170px;color:var(--doux);cursor:pointer"></td>
       <td>${c.tickets ?? 0}</td>
       <td>${c.statut === "exempt" ? "—" : (c.expire_le ?? "—")}<br>${badge(c)}</td>
       <td style="white-space:nowrap">
@@ -150,6 +150,14 @@ async function offrir(id){
   await fetch('/api/admin/gratuit',{method:'POST',headers:{'content-type':'application/json'},
     body:JSON.stringify({id})});
   location.reload();
+}
+function copierChamp(champ){
+  champ.select();
+  champ.setSelectionRange(0,99999);
+  copier(champ.value,null);
+  const avant=champ.style.background;
+  champ.style.background='#dff0d8';
+  setTimeout(()=>{champ.style.background=avant},900);
 }
 function retour(bouton){
   if(!bouton)return;
