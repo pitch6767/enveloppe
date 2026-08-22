@@ -145,9 +145,10 @@ describe("contenu des pages", () => {
     expect(pages.admin).toContain("112233");
   });
 
-  it("le lien est visible et sélectionnable, pas seulement copiable", () => {
+  it("le lien est visible et se copie d'un clic sur le champ", () => {
     expect(pages.admin).toContain('value="https://enveloppe.pitch67.workers.dev/483927"');
-    expect(pages.admin).toContain("this.select()");
+    expect(pages.admin).toContain("copierChamp(this)");
+    expect(pages.admin).toContain("function copierChamp");
   });
 
   it("la copie a deux niveaux de repli", () => {
