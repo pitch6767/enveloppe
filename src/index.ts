@@ -27,13 +27,34 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-function lireCookie(req: Request, nom: string): string | null {
+/**
+ * Un même nom de cookie peut exister plusieurs fois avec des chemins différents ;
+ * le navigateur les envoie tous. Ne pas lire que le premier.
+ */
+function lireCookies(req: Request, nom: string): string[] {
   const brut = req.headers.get("cookie") ?? "";
+  const out: string[] = [];
   for (const part of brut.split(";")) {
     const [k, ...v] = part.trim().split("=");
-    if (k === nom) return decodeURIComponent(v.join("="));
+    if (k === nom) out.push(decodeURIComponent(v.join("=")));
   }
-  return null;
+  return out;
+}
+
+function lireCookie(req: Request, nom: string): string | null {
+  return lireCookies(req, nom)[0] ?? null;
+}
+
+function estAdmin(req: Request, env: Env): boolean {
+  return lireCookies(req, "env_admin").includes(env.ADMIN_CODE);
+}
+
+/** Repose le cookie sur tout le site et efface la variante héritée Path=/admin. */
+function cookiesAdmin(code: string): string[] {
+  return [
+    `env_admin=${code}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax`,
+    `env_admin=; Path=/admin; Max-Age=0; HttpOnly; Secure; SameSite=Lax`,
+  ];
 }
 
 function poserCookie(code: string): string {
@@ -227,21 +248,20 @@ export default {
   },
 };
 
+function reponseAdmin(code: string, corps: string): Response {
+  const h = new Headers({ "content-type": "text/html; charset=utf-8" });
+  for (const c of cookiesAdmin(code)) h.append("set-cookie", c);
+  return new Response(corps, { headers: h });
+}
+
 async function admin(req: Request, env: Env): Promise<Response> {
-  const code = lireCookie(req, "env_admin");
-  if (code !== env.ADMIN_CODE) {
+  if (!estAdmin(req, env)) {
     if (req.method === "POST") {
       const f = await req.formData();
       if (String(f.get("code")) === env.ADMIN_CODE) {
-        return new Response(null, {
-          status: 302,
-          headers: {
-            location: "/admin",
-            // Path=/ et non /admin : sans cela le cookie n'accompagne pas les
-            // appels vers /api/admin/... et toute action est refusée.
-            "set-cookie": `env_admin=${env.ADMIN_CODE}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax`,
-          },
-        });
+        const h = new Headers({ location: "/admin" });
+        for (const c of cookiesAdmin(env.ADMIN_CODE)) h.append("set-cookie", c);
+        return new Response(null, { status: 302, headers: h });
       }
     }
     return html(pageEntree(undefined, true));
@@ -260,11 +280,13 @@ async function admin(req: Request, env: Env): Promise<Response> {
   }));
 
   const base = new URL(req.url).origin;
-  return html(pageAdmin(avecAcces, base));
+  return reponseAdmin(env.ADMIN_CODE, pageAdmin(avecAcces, base));
 }
 
 async function apiAdmin(req: Request, env: Env, p: string): Promise<Response> {
-  if (lireCookie(req, "env_admin") !== env.ADMIN_CODE) return json({ erreur: "refuse" }, 403);
+  if (!estAdmin(req, env)) {
+    return json({ erreur: "session expirée — recharge la page et retape ton code" }, 403);
+  }
   if (req.method !== "POST") return json({ erreur: "methode" }, 405);
 
   const corps = await req.json<any>();
