@@ -62,10 +62,10 @@ export function pageAdmin(comptes: any[], base: string, nouveau: string | null =
   };
 
   const lignes = comptes.map((c) => `<tr>
-      <td><strong>${c.nom}</strong><br>
-        <span class="doux code" style="font-size:.9rem">${c.code}</span><br>
+      <td><strong>${c.nom}</strong></td>
+      <td><span class="code" style="font-size:1.1rem;font-weight:600;color:var(--texte)">${c.code}</span><br>
         <input readonly value="${base}/${c.code}" onclick="this.select()"
-               style="font-size:.75rem;padding:4px;margin-top:4px;width:100%;min-width:180px;color:var(--doux)"></td>
+               style="font-size:.7rem;padding:3px;margin-top:4px;width:100%;min-width:170px;color:var(--doux)"></td>
       <td>${c.tickets ?? 0}</td>
       <td>${c.statut === "exempt" ? "—" : (c.expire_le ?? "—")}<br>${badge(c)}</td>
       <td style="white-space:nowrap">
@@ -103,7 +103,7 @@ export function pageAdmin(comptes: any[], base: string, nouveau: string | null =
 
 <h2>Liste</h2>
 <div class="carte" style="overflow-x:auto"><table>
-  <tr><th>Personne</th><th>Tickets</th><th>Jusqu'au</th><th></th></tr>${lignes}
+  <tr><th>Personne</th><th>Code</th><th>Tickets</th><th>Jusqu'au</th><th></th></tr>${lignes}
 </table></div>
 <script>
 const BASE=${JSON.stringify(base)};

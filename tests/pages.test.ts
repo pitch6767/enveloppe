@@ -139,6 +139,12 @@ describe("contenu des pages", () => {
     expect(pages.admin).not.toContain("Espace créé");
   });
 
+  it("le code a sa propre colonne et reste lisible", () => {
+    expect(pages.admin).toContain("<th>Code</th>");
+    expect(pages.admin).toContain("483927");
+    expect(pages.admin).toContain("112233");
+  });
+
   it("le lien est visible et sélectionnable, pas seulement copiable", () => {
     expect(pages.admin).toContain('value="https://enveloppe.pitch67.workers.dev/483927"');
     expect(pages.admin).toContain("this.select()");
