@@ -125,6 +125,16 @@ describe("contenu des pages", () => {
     expect(pageApp(s, etat)).not.toContain("achats exceptionnels");
   });
 
+  it("le lien est visible et sélectionnable, pas seulement copiable", () => {
+    expect(pages.admin).toContain('value="https://enveloppe.pitch67.workers.dev/483927"');
+    expect(pages.admin).toContain("this.select()");
+  });
+
+  it("la copie a deux niveaux de repli", () => {
+    expect(pages.admin).toContain("execCommand");
+    expect(pages.admin).toContain("prompt(");
+  });
+
   it("le code de chaque espace est modifiable", () => {
     expect(pages.admin).toContain("Changer le code");
     expect(pages.admin).toContain("changerCode('cpt_1','483927')");

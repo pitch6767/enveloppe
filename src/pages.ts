@@ -61,11 +61,14 @@ export function pageAdmin(comptes: any[], base: string): string {
   };
 
   const lignes = comptes.map((c) => `<tr>
-      <td><strong>${c.nom}</strong><br><span class="doux code" style="font-size:.9rem">${c.code}</span></td>
+      <td><strong>${c.nom}</strong><br>
+        <span class="doux code" style="font-size:.9rem">${c.code}</span><br>
+        <input readonly value="${base}/${c.code}" onclick="this.select()"
+               style="font-size:.75rem;padding:4px;margin-top:4px;width:100%;min-width:180px;color:var(--doux)"></td>
       <td>${c.tickets ?? 0}</td>
       <td>${c.statut === "exempt" ? "—" : (c.expire_le ?? "—")}<br>${badge(c)}</td>
       <td style="white-space:nowrap">
-        <button class="plat" onclick="copier('${base}/${c.code}')">Copier le lien</button><br>
+        <button class="plat" onclick="copier('${base}/${c.code}',this)">Copier le lien</button><br>
         <button class="plat" onclick="changerCode('${c.id}','${c.code}')">Changer le code</button><br>
         ${c.statut === "exempt" ? "" : `
         <select id="d_${c.id}" style="width:auto;padding:4px;font-size:.8rem">
@@ -111,14 +114,17 @@ async function creer(){
   cadre.className='info';
   const t=document.createElement('div');
   t.innerHTML='Code <strong class="code">'+d.code+'</strong>';
-  const u=document.createElement('div');
-  u.className='doux';
-  u.style.wordBreak='break-all';
-  u.textContent=dernierLien;
+  const u=document.createElement('input');
+  u.readOnly=true;
+  u.value=dernierLien;
+  u.style.width='100%';
+  u.style.fontSize='.8rem';
+  u.style.marginTop='6px';
+  u.onclick=()=>u.select();
   const b=document.createElement('button');
   b.className='plat';
   b.textContent='Copier le lien';
-  b.onclick=()=>copier(dernierLien);
+  b.onclick=()=>copier(dernierLien,b);
   cadre.append(t,u,b);
   boite.append(cadre);
 }
@@ -145,8 +151,31 @@ async function offrir(id){
     body:JSON.stringify({id})});
   location.reload();
 }
-function copier(t){
-  navigator.clipboard.writeText(t).then(()=>{},()=>prompt('Copie ce lien :',t));
+function retour(bouton){
+  if(!bouton)return;
+  const avant=bouton.textContent;
+  bouton.textContent='Copié';
+  setTimeout(()=>{bouton.textContent=avant},1500);
+}
+function copier(t,bouton){
+  // navigator.clipboard échoue selon le navigateur et le contexte : on garde deux replis.
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(t).then(()=>retour(bouton),()=>vieilleCopie(t,bouton));
+  }else{
+    vieilleCopie(t,bouton);
+  }
+}
+function vieilleCopie(t,bouton){
+  const z=document.createElement('textarea');
+  z.value=t;
+  z.style.position='fixed';
+  z.style.opacity='0';
+  document.body.appendChild(z);
+  z.focus();z.select();
+  let ok=false;
+  try{ok=document.execCommand('copy')}catch(e){ok=false}
+  document.body.removeChild(z);
+  if(ok)retour(bouton); else prompt('Copie ce lien à la main :',t);
 }
 </script>`);
 }
