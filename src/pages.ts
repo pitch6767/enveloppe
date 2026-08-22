@@ -111,6 +111,10 @@ export function pageApp(s: { nom: string; salaire: number; epargne: number; acce
       ? `<div class="info">Accès à renouveler dans ${s.acces.joursRestants} jours.</div>`
       : "";
 
+  const note = e.horsRythme > 0
+    ? `<div class="doux" style="margin:-4px 0 12px">Rythme calculé sur ${chf(e.totalDepense - e.horsRythme)}, hors ${chf(e.horsRythme)} d'achats exceptionnels.</div>`
+    : "";
+
   const alerteRythme = pr.ecart < 0
     ? `<div class="alerte"><strong>À ce rythme : ${chf(pr.ecart)} CHF le ${pr.joursDuMois}.</strong>${
         pr.jourDeRupture ? `<br>À sec le ${pr.jourDeRupture}.` : ""}</div>`
@@ -132,7 +136,7 @@ export function pageApp(s: { nom: string; salaire: number; epargne: number; acce
 
   return enveloppeHtml("Enveloppe", `
 <h1>${s.nom}</h1>
-${bandeau}${alerteRythme}
+${bandeau}${alerteRythme}${note}
 <div class="carte">
   <div class="doux">Disponible ce mois</div>
   <div class="gros ${env_.disponible < 0 ? "exces" : ""}">${chf(env_.disponible)}</div>
@@ -278,6 +282,11 @@ export function pageDepenses(deps: any[], lignes: any[], cats: any[]): string {
 
     return `<h2>${d.date} — ${d.marchand ?? "sans nom"} — ${chf(d.total)}</h2>
       <div class="carte">${rangs || '<div class="doux">Aucune ligne.</div>'}
+        <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:.9rem">
+          <input type="checkbox" style="width:auto" ${d.exceptionnel ? "checked" : ""}
+                 onchange="exceptionnel('${d.id}',this.checked)">
+          Achat exceptionnel — compte dans le mois, pas dans le rythme
+        </label>
         <button style="background:var(--exces);width:100%;margin-top:12px" onclick="supprDep('${d.id}')">Annuler ce ticket</button>
       </div>`;
   }).join("");
@@ -307,6 +316,11 @@ async function scinder(id,total){
   const r=await fetch('/api/ligne/'+id+'/scinder',{method:'POST',headers:{'content-type':'application/json'},
     body:JSON.stringify({montant:parseFloat(m),categorie_id:CATS[+i].id})});
   if(!r.ok){const e=await r.json();alert(e.erreur||'Échec');return}
+  location.reload();
+}
+async function exceptionnel(id,coche){
+  await fetch('/api/depense/'+id,{method:'PATCH',headers:{'content-type':'application/json'},
+    body:JSON.stringify({exceptionnel:coche})});
   location.reload();
 }
 async function supprDep(id){

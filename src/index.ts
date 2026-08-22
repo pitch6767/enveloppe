@@ -121,6 +121,14 @@ async function etatDuMois(env: Env, s: Session) {
 
   const totalDepense = (cats.results ?? []).reduce((a, c) => a + c.depense, 0);
 
+  // Le rythme se calcule sur les seules dépenses courantes : une dépense
+  // exceptionnelle réduit bien le disponible, mais ne s'extrapole pas.
+  const exceptionnel = await env.DB.prepare(
+    `SELECT COALESCE(SUM(total), 0) AS t FROM depenses
+      WHERE compte_id = ?1 AND exceptionnel = 1 AND date >= ?2 AND date < ?3`,
+  ).bind(s.compte_id, debut, fin).first<any>();
+  const horsRythme = exceptionnel?.t ?? 0;
+
   const aVerifier = await env.DB.prepare(
     `SELECT COUNT(*) AS n FROM lignes WHERE compte_id = ?1 AND confiance < ?2`,
   ).bind(s.compte_id, SEUIL_CONFIANCE).first<any>();
@@ -129,7 +137,9 @@ async function etatDuMois(env: Env, s: Session) {
     enveloppe: env_,
     fixes: fixes.results ?? [],
     categories: cats.results ?? [],
-    projection: projeter(totalDepense, env_.disponible, new Date()),
+    projection: projeter(totalDepense - horsRythme, env_.disponible - horsRythme, new Date()),
+    horsRythme,
+    totalDepense,
     aVerifier: aVerifier?.n ?? 0,
   };
 }
@@ -179,7 +189,7 @@ export default {
 
     if (p === "/depenses") {
       const d = await env.DB.prepare(
-        `SELECT id, date, marchand, total, source FROM depenses
+        `SELECT id, date, marchand, total, source, exceptionnel FROM depenses
           WHERE compte_id = ?1 ORDER BY date DESC, cree_le DESC LIMIT 40`,
       ).bind(s.compte_id).all<any>();
       const l = await env.DB.prepare(
@@ -412,6 +422,13 @@ async function api(req: Request, env: Env, s: Session, p: string): Promise<Respo
     await env.DB.prepare(
       `UPDATE categories SET budget = ?2 WHERE id = ?1 AND compte_id = ?3`,
     ).bind(id, c.budget === null || c.budget === "" ? null : Number(c.budget) || null, s.compte_id).run();
+    return json({ ok: true });
+  }
+
+  if (p.startsWith("/api/depense/") && req.method === "PATCH") {
+    if (!ecriture) return json({ erreur: "ton accès est arrivé à échéance" }, 402);
+    await env.DB.prepare(`UPDATE depenses SET exceptionnel = ?2 WHERE id = ?1 AND compte_id = ?3`)
+      .bind(p.split("/")[3], (await req.json<any>()).exceptionnel ? 1 : 0, s.compte_id).run();
     return json({ ok: true });
   }
 

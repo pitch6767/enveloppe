@@ -7,7 +7,7 @@ const cats = [
   { id: "cat_1", nom: "Nourriture", description: "courses", budget: 600, couleur: "#3b7a3b", systeme: 0, depense: 412.5 },
   { id: "cat_2", nom: "Alcool", description: "vin", budget: null, couleur: "#7b3fa0", systeme: 1, depense: 64 },
 ];
-const deps = [{ id: "dep_1", date: "2026-08-17", marchand: "Coop", total: 87, source: "scan" }];
+const deps = [{ id: "dep_1", date: "2026-08-17", marchand: "Coop", total: 87, source: "scan", exceptionnel: 0 }];
 const lignes = [
   { id: "lig_1", depense_id: "dep_1", libelle: "Pain", montant: 5.6, categorie_id: "cat_1", confiance: 0.95 },
   { id: "lig_2", depense_id: "dep_1", libelle: "Vin rouge", montant: 18, categorie_id: "cat_2", confiance: 0.4 },
@@ -18,6 +18,8 @@ const etat = {
   categories: cats,
   projection: projeter(476.5, 1500, new Date(2026, 7, 10)),
   aVerifier: 1,
+  horsRythme: 0,
+  totalDepense: 476.5,
 };
 const s = { nom: "Pitch", salaire: 5000, epargne: 1000, acces: { niveau: "ouvert", joursRestants: null } as const };
 
@@ -105,6 +107,18 @@ describe("contenu des pages", () => {
 
   it("l'image est réduite avant envoi", () => {
     expect(pages.app).toContain("createImageBitmap");
+  });
+
+  it("la case exceptionnel est proposée sur chaque ticket", () => {
+    expect(pages.depenses).toContain("Achat exceptionnel");
+    expect(pages.depenses).toContain("exceptionnel('dep_1'");
+  });
+
+  it("l'accueil explique le rythme quand un achat est exclu", () => {
+    const avec = { ...etat, horsRythme: 599, totalDepense: 1075.5,
+                   projection: projeter(476.5, 901, new Date(2026, 7, 10)) };
+    expect(pageApp(s, avec)).toContain("achats exceptionnels");
+    expect(pageApp(s, etat)).not.toContain("achats exceptionnels");
   });
 
   it("un ticket s'annule depuis les deux écrans", () => {
