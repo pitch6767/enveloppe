@@ -2,7 +2,7 @@ import { CATEGORIES_DEFAUT, SEUIL_CONFIANCE } from "./categories";
 import { genererCode, genererId, normaliserLibelle, calculerEnveloppe, projeter, chf } from "./lib";
 import { evaluerAcces, peutEcrire, prolonger, prolongerUnAn, type Acces } from "./acces";
 import { analyserImage, elucider, type CategorieRow } from "./vision";
-import { pageEntree, pageAdmin, pageApp, pageReglages, pageDepenses, pageCategories, pageClasser } from "./pages";
+import { pageEntree, pageAdmin, pageApp, pageReglages, pageDepenses, pageCategories, pageClasser, MANIFEST, ICONE, ICONE_PNG } from "./pages";
 
 export interface Env {
   DB: D1Database;
@@ -169,6 +169,25 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     const p = url.pathname;
+
+    // Ressources de l'application installable, accessibles sans code :
+    // le navigateur les demande avant toute connexion.
+    if (p === "/manifest.json") {
+      return new Response(MANIFEST, {
+        headers: { "content-type": "application/manifest+json; charset=utf-8", "cache-control": "public, max-age=3600" },
+      });
+    }
+    if (p === "/icone.svg") {
+      return new Response(ICONE, {
+        headers: { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "public, max-age=86400" },
+      });
+    }
+    if (p === "/icone.png") {
+      // iOS ignore les icônes SVG : il lui faut un PNG.
+      return new Response(ICONE_PNG().buffer as ArrayBuffer, {
+        headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" },
+      });
+    }
 
     // Lien direct /483927 : pose le cookie et redirige.
     const direct = p.match(/^\/(\d{6})$/);

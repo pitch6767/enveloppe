@@ -36,6 +36,11 @@ function enveloppeHtml(titre: string, corps: string): string {
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Enveloppe">
+<meta name="theme-color" content="#2c2a26">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icone.png">
 <title>${titre}</title><style>${CSS}</style></head><body>${corps}</body></html>`;
 }
 
@@ -247,12 +252,52 @@ ${e.aVerifier > 0 ? `<div class="info"><a href="/classer" style="color:inherit">
 </div>
 <h2>Catégories</h2>
 <div class="carte">${cats}</div>
+<div id="poseApp" style="display:none;margin:12px 0">
+  <button id="btInstaller" style="width:100%">Installer l'application</button>
+</div>
+<div id="poseIos" class="info" style="display:none">
+  <strong>Ajouter à ton écran d'accueil</strong><br>
+  1. Touche le bouton Partager en bas de Safari, le carré avec une flèche.<br>
+  2. Fais défiler et touche « Sur l'écran d'accueil ».<br>
+  3. Touche « Ajouter ».
+  <button class="plat" onclick="masquerPose()">J'ai compris</button>
+</div>
+
 <div style="margin:16px 0 40px;display:flex;flex-direction:column;gap:8px">
   <a href="/depenses" style="color:var(--accent)">Corriger les dépenses</a>
   <a href="/categories" style="color:var(--accent)">Catégories et budgets</a>
   <a href="/reglages" style="color:var(--accent)">Salaire, charges fixes et épargne</a>
 </div>
 <script>
+// Android et Chrome : le navigateur propose l'installation, on la déclenche.
+let inviteInstall=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  inviteInstall=e;
+  document.getElementById('poseApp').style.display='block';
+});
+document.getElementById('btInstaller').onclick=async()=>{
+  if(!inviteInstall)return;
+  inviteInstall.prompt();
+  await inviteInstall.userChoice;
+  inviteInstall=null;
+  document.getElementById('poseApp').style.display='none';
+};
+window.addEventListener('appinstalled',()=>{
+  document.getElementById('poseApp').style.display='none';
+});
+// iOS interdit l'installation automatique : on montre les trois gestes.
+(function(){
+  const ios=/iPad|iPhone|iPod/.test(navigator.userAgent);
+  const pose=window.navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
+  if(ios && !pose && !sessionStorage.getItem('poseVue')){
+    document.getElementById('poseIos').style.display='block';
+  }
+})();
+function masquerPose(){
+  sessionStorage.setItem('poseVue','1');
+  document.getElementById('poseIos').style.display='none';
+}
 const zone=document.getElementById('zone'),fic=document.getElementById('fic'),photo=document.getElementById('photo');
 zone.onclick=()=>fic.click();
 fic.onchange=()=>fic.files[0]&&envoyer(fic.files[0]);
@@ -539,3 +584,30 @@ async function annuler(dep){
 }
 </script>`);
 }
+
+export { ICONE_PNG } from "./icone-png";
+
+export const MANIFEST = JSON.stringify({
+  name: "Enveloppe — budget",
+  short_name: "Enveloppe",
+  start_url: "/",
+  scope: "/",
+  display: "standalone",
+  orientation: "portrait",
+  background_color: "#faf8f5",
+  theme_color: "#2c2a26",
+  lang: "fr",
+  icons: [
+    { src: "/icone.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+    { src: "/icone.svg", sizes: "any", type: "image/svg+xml", purpose: "maskable" },
+  ],
+});
+
+/* Icône : une enveloppe ouverte avec un billet. Reconnaissable sans lire. */
+export const ICONE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+<rect width="192" height="192" rx="34" fill="#2c2a26"/>
+<rect x="34" y="66" width="124" height="88" rx="8" fill="#faf8f5"/>
+<path d="M34 74l62 44 62-44" fill="none" stroke="#2c2a26" stroke-width="9" stroke-linejoin="round"/>
+<rect x="62" y="30" width="68" height="46" rx="6" fill="#3b7a3b"/>
+<path d="M78 53h36" stroke="#faf8f5" stroke-width="7" stroke-linecap="round"/>
+</svg>`;

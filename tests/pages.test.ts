@@ -113,6 +113,35 @@ describe("contenu des pages", () => {
     expect(pages.app).toContain('href="/classer"');
   });
 
+  it("l'installation est proposée sur Android et expliquée sur iPhone", () => {
+    expect(pages.app).toContain("beforeinstallprompt");
+    expect(pages.app).toContain("Installer l'application");
+    expect(pages.app).toContain("Sur l'écran d'accueil");
+  });
+
+  it("chaque page déclare le manifeste et l'icône", () => {
+    for (const html of Object.values(pages)) {
+      expect(html).toContain('<link rel="manifest" href="/manifest.json">');
+      expect(html).toContain('rel="apple-touch-icon"');
+    }
+  });
+
+  it("le manifeste est complet et en mode application", async () => {
+    const { MANIFEST } = await import("../src/pages");
+    const m = JSON.parse(MANIFEST);
+    expect(m.display).toBe("standalone");
+    expect(m.start_url).toBe("/");
+    expect(m.icons.length).toBeGreaterThan(0);
+    expect(m.short_name.length).toBeLessThanOrEqual(12);
+  });
+
+  it("l'icône PNG est un vrai PNG", async () => {
+    const { ICONE_PNG } = await import("../src/pages");
+    const o = ICONE_PNG();
+    expect([...o.slice(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+    expect(o.length).toBeGreaterThan(200);
+  });
+
   it("l'image est réduite avant envoi", () => {
     expect(pages.app).toContain("createImageBitmap");
   });
