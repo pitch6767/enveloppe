@@ -232,8 +232,17 @@ export function pageApp(s: { nom: string; salaire: number; epargne: number; acce
 <h1>${s.nom}</h1>
 ${bandeau}${alerteRythme}${note}
 <div class="carte">
-  <div class="doux">Disponible ce mois</div>
-  <div class="gros ${env_.disponible < 0 ? "exces" : ""}">${chf(env_.disponible)}</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+    <div>
+      <div class="doux">Disponible ce mois</div>
+      <div class="gros ${env_.disponible < 0 ? "exces" : ""}">${chf(env_.disponible)}</div>
+    </div>
+    <div style="text-align:right">
+      <div class="doux">Par jour</div>
+      <div class="gros ${e.journalier.niveau}" style="font-size:1.6rem">${chf(e.journalier.montant)}</div>
+      <div class="doux" style="font-size:.75rem">dépensé ${chf(e.journalier.depenseParJour)}/j</div>
+    </div>
+  </div>
   <div class="doux" style="margin-top:8px">
     Salaire ${chf(env_.salaire)} − fixes ${chf(env_.fixes)} (${env_.pctFixes.toFixed(0)} %)
     − épargne ${chf(env_.epargne)} (${env_.pctEpargne.toFixed(0)} %)

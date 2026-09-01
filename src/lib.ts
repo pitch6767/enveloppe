@@ -108,3 +108,39 @@ export function chf(n: number): string {
   return new Intl.NumberFormat("fr-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     .format(n);
 }
+
+export interface Journalier {
+  montant: number;
+  depenseParJour: number;
+  niveau: "ok" | "attention" | "exces";
+}
+
+/**
+ * Ce qu'on peut dépenser par jour pour tenir le mois, et où l'on en est.
+ * Le rythme réel est comparé à cette allocation : vert en dessous,
+ * orange dans la dernière dizaine de pourcents, rouge au-dessus.
+ */
+export function parJour(disponible: number, depense: number, aujourdhui: Date): Journalier {
+  const joursDuMois = new Date(
+    aujourdhui.getFullYear(),
+    aujourdhui.getMonth() + 1,
+    0,
+  ).getDate();
+  const jourCourant = aujourdhui.getDate();
+
+  const montant = disponible / joursDuMois;
+  const depenseParJour = jourCourant > 0 ? depense / jourCourant : 0;
+
+  let niveau: Journalier["niveau"];
+  if (montant <= 0) {
+    niveau = "exces";
+  } else if (depenseParJour > montant) {
+    niveau = "exces";
+  } else if (depenseParJour >= montant * 0.9) {
+    niveau = "attention";
+  } else {
+    niveau = "ok";
+  }
+
+  return { montant, depenseParJour, niveau };
+}

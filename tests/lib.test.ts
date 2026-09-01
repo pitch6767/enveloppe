@@ -172,3 +172,41 @@ describe("dateValide", () => {
     expect(parserReponse('{"marchand":"Fnac","date":"AAAA-MM-JJ","total":10,"lignes":[]}').date).toBeNull();
   });
 });
+
+describe("parJour", () => {
+  it("divise le disponible par le nombre de jours du mois", async () => {
+    const { parJour } = await import("../src/lib");
+    // août : 31 jours
+    const j = parJour(3382, 0, new Date(2026, 7, 20));
+    expect(j.montant).toBeCloseTo(3382 / 31, 5);
+  });
+  it("s'adapte a la longueur du mois", async () => {
+    const { parJour } = await import("../src/lib");
+    expect(parJour(3000, 0, new Date(2026, 8, 10)).montant).toBeCloseTo(100, 5); // septembre, 30
+    expect(parJour(2800, 0, new Date(2026, 1, 10)).montant).toBeCloseTo(100, 5); // fevrier, 28
+    expect(parJour(2900, 0, new Date(2028, 1, 10)).montant).toBeCloseTo(100, 5); // fevrier bissextile
+  });
+  it("est vert quand le rythme reste sous l'allocation", async () => {
+    const { parJour } = await import("../src/lib");
+    // 31 jours, 3100 dispo = 100/j ; au 10, 500 depenses = 50/j
+    expect(parJour(3100, 500, new Date(2026, 7, 10)).niveau).toBe("ok");
+  });
+  it("est orange quand on frole l'allocation", async () => {
+    const { parJour } = await import("../src/lib");
+    // au 10, 950 depenses = 95/j pour 100/j
+    expect(parJour(3100, 950, new Date(2026, 7, 10)).niveau).toBe("attention");
+  });
+  it("est rouge des qu'on depasse", async () => {
+    const { parJour } = await import("../src/lib");
+    expect(parJour(3100, 1200, new Date(2026, 7, 10)).niveau).toBe("exces");
+  });
+  it("est rouge si le disponible est nul ou negatif", async () => {
+    const { parJour } = await import("../src/lib");
+    expect(parJour(0, 0, new Date(2026, 7, 10)).niveau).toBe("exces");
+    expect(parJour(-200, 0, new Date(2026, 7, 10)).niveau).toBe("exces");
+  });
+  it("le premier jour sans depense reste vert", async () => {
+    const { parJour } = await import("../src/lib");
+    expect(parJour(3100, 0, new Date(2026, 7, 1)).niveau).toBe("ok");
+  });
+});

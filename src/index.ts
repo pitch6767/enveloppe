@@ -1,5 +1,5 @@
 import { CATEGORIES_DEFAUT, SEUIL_CONFIANCE } from "./categories";
-import { genererCode, genererId, normaliserLibelle, calculerEnveloppe, projeter, chf } from "./lib";
+import { genererCode, genererId, normaliserLibelle, calculerEnveloppe, projeter, parJour, chf } from "./lib";
 import { evaluerAcces, peutEcrire, prolonger, prolongerUnAn, type Acces } from "./acces";
 import { analyserImage, elucider, type CategorieRow } from "./vision";
 import { pageEntree, pageAdmin, pageApp, pageReglages, pageDepenses, pageCategories, pageClasser, MANIFEST, ICONE, ICONE_PNG } from "./pages";
@@ -159,6 +159,7 @@ async function etatDuMois(env: Env, s: Session) {
     fixes: fixes.results ?? [],
     categories: cats.results ?? [],
     projection: projeter(totalDepense - horsRythme, env_.disponible - horsRythme, new Date()),
+    journalier: parJour(env_.disponible - horsRythme, totalDepense - horsRythme, new Date()),
     horsRythme,
     totalDepense,
     aVerifier: aVerifier?.n ?? 0,

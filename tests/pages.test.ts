@@ -1,7 +1,7 @@
 // Rend chaque page, extrait les <script> du HTML produit, valide la syntaxe.
 import { describe, it, expect } from "vitest";
 import { pageEntree, pageAdmin, pageApp, pageReglages, pageDepenses, pageCategories, pageClasser } from "../src/pages";
-import { calculerEnveloppe, projeter } from "../src/lib";
+import { calculerEnveloppe, projeter, parJour } from "../src/lib";
 
 const cats = [
   { id: "cat_1", nom: "Nourriture", description: "courses", budget: 600, couleur: "#3b7a3b", systeme: 0, depense: 412.5 },
@@ -20,6 +20,7 @@ const etat = {
   aVerifier: 1,
   horsRythme: 0,
   totalDepense: 476.5,
+  journalier: parJour(1500, 476.5, new Date(2026, 7, 10)),
 };
 const s = { nom: "Pitch", salaire: 5000, epargne: 1000, acces: { niveau: "ouvert", joursRestants: null } as const };
 
@@ -111,6 +112,18 @@ describe("contenu des pages", () => {
 
   it("le badge d'accueil renvoie vers le classement", () => {
     expect(pages.app).toContain('href="/classer"');
+  });
+
+  it("le montant par jour est affiché à droite du disponible", () => {
+    expect(pages.app).toContain("Par jour");
+    expect(pages.app).toContain("/j");
+  });
+
+  it("le montant par jour porte la couleur de son niveau", () => {
+    const vert = { ...etat, journalier: parJour(3100, 300, new Date(2026, 7, 10)) };
+    const rouge = { ...etat, journalier: parJour(3100, 1200, new Date(2026, 7, 10)) };
+    expect(pageApp(s, vert)).toContain('class="gros ok"');
+    expect(pageApp(s, rouge)).toContain('class="gros exces"');
   });
 
   it("l'installation est proposée sur Android et expliquée sur iPhone", () => {
